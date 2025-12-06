@@ -1,0 +1,22 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+
+# Add initialization script
+RUN echo '#!/bin/sh\n\
+echo "Waiting for database..."\n\
+while ! nc -z postgres-test 5432; do\n\
+  sleep 1\n\
+done\n\
+echo "Database is ready!"\n\
+npm run test\n\
+' > /app/wait-for-db.sh
+
+RUN chmod +x /app/wait-for-db.sh
+
+CMD ["./wait-for-db.sh"]
