@@ -1,40 +1,32 @@
-const express = require('express');
-const cors = require('cors');
-const pool = require('./db');
-const userRoutes = require('./routes/users');
-require('dotenv').config();
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import authRoutes from './routes/auth.js';
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors());
+// Middleware
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+// Routes
 app.get('/', (req, res) => {
-  res.json({ message: 'Hello from Express backend!' });
+  res.json({ message: 'Hello from Express backend with Lucia auth!' });
 });
 
 app.get('/api/test', (req, res) => {
   res.json({ message: 'API is working!' });
 });
 
-app.get('/api/db-test', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT NOW()');
-    res.json({ 
-      message: 'Database connection successful!',
-      timestamp: result.rows[0].now 
-    });
-  } catch (err) {
-    console.error('Database connection error:', err);
-    res.status(500).json({ 
-      message: 'Database connection failed',
-      error: err.message 
-    });
-  }
-});
-
-app.use('/api/users', userRoutes);
+// Auth routes
+app.use('/api/auth', authRoutes);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
