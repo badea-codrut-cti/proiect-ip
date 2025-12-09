@@ -19,8 +19,9 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "jsonwebtoken": "^9.0.3",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "lucia": "^2.7.0",
+    "@lucia-auth/adapter-pg": "^2.0.2"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

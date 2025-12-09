@@ -1,64 +1,130 @@
-const express = require("express");
+import express from "express";
+import { auth } from "../lucia.js";
+import { LuciaError } from "lucia";
+
 const router = express.Router();
-const userService = require("../services/userService");
 
-// Autentificarea utilizatorului pentru rute protejate
-function authMiddleware(req, res, next) {
-  const authHeader = req.headers.authorization;
-
-  // daca nu e autorizat
-  if (!authHeader)
-    return res.status(401).json({ error: "Authorization header missing" });
-
-  // format corect: "Bearer TOKEN"
-  const token = authHeader.split(" ")[1];
-
-  if (!token)
-    return res.status(401).json({ error: "Token missing" });
+// Sign up route
+router.post("/signup", async (req, res) => {
+  const { username, password } = req.body;
+  
+  // Basic validation
+  if (typeof username !== "string" || username.length < 4 || username.length > 31) {
+    return res.status(400).json({ error: "Invalid username. Must be 4-31 characters." });
+  }
+  if (typeof password !== "string" || password.length < 6 || password.length > 255) {
+    return res.status(400).json({ error: "Invalid password. Must be 6-255 characters." });
+  }
 
   try {
-    // verificare token
-    const decoded = userService.verifyToken(token);
+    const user = await auth.createUser({
+      key: {
+        providerId: "username",
+        providerUserId: username.toLowerCase(),
+        password: password
+      },
+      attributes: {
+        username: username
+      }
+    });
 
-    // salavre date
-    req.user = decoded;
+    const session = await auth.createSession({
+      userId: user.userId,
+      attributes: {}
+    });
 
-    next(); 
-  } catch (err) {
-    return res.status(401).json({ error: "Invalid or expired token" });
+    const authRequest = auth.handleRequest(req, res);
+    authRequest.setSession(session);
+
+    return res.status(201).json({
+      success: true,
+      user: {
+        id: user.userId,
+        username: user.attributes.username
+      }
+    });
+  } catch (e) {
+    // Check for unique constraint error
+    if (e.message && e.message.includes("duplicate key value violates unique constraint")) {
+      return res.status(400).json({ error: "Username already taken" });
+    }
+    
+    console.error("Signup error:", e);
+    return res.status(500).json({ error: "An unknown error occurred" });
   }
-}
-
-// Ruta protejata pentru profil
-router.get("/user/me", authMiddleware, async (req, res) => {
-  userService.getProfile(req, res);
 });
 
+// Login route
+router.post("/login", async (req, res) => {
+  const { username, password } = req.body;
 
+  // Basic validation
+  if (typeof username !== "string" || username.length < 1 || username.length > 31) {
+    return res.status(400).json({ error: "Invalid username" });
+  }
+  if (typeof password !== "string" || password.length < 1 || password.length > 255) {
+    return res.status(400).json({ error: "Invalid password" });
+  }
 
-// Register
-router.post("/auth/register", async (req, res) => {
-  userService.register(req, res);
+  try {
+    const key = await auth.useKey("username", username.toLowerCase(), password);
+    const session = await auth.createSession({
+      userId: key.userId,
+      attributes: {}
+    });
+
+    const authRequest = auth.handleRequest(req, res);
+    authRequest.setSession(session);
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        id: key.userId,
+        username: key.userAttributes.username
+      }
+    });
+  } catch (e) {
+    if (e instanceof LuciaError) {
+      if (e.message === "AUTH_INVALID_KEY_ID" || e.message === "AUTH_INVALID_PASSWORD") {
+        return res.status(400).json({ error: "Incorrect username or password" });
+      }
+    }
+    
+    console.error("Login error:", e);
+    return res.status(500).json({ error: "An unknown error occurred" });
+  }
 });
 
-// Login
-router.post("/auth/login", async (req, res) => {
-  userService.login(req, res);
+// Get current user
+router.get("/me", async (req, res) => {
+  const authRequest = auth.handleRequest(req, res);
+  const session = await authRequest.validate();
+  
+  if (!session) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  return res.status(200).json({
+    user: {
+      id: session.user.userId,
+      username: session.user.username
+    }
+  });
 });
 
-// Request reset password token
-router.post("/auth/forgot-password", async (req, res) => {
-  userService.requestPasswordReset(req, res);
+// Logout
+router.post("/logout", async (req, res) => {
+  const authRequest = auth.handleRequest(req, res);
+  const session = await authRequest.validate();
+  
+  if (!session) {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+
+  await auth.invalidateSession(session.sessionId);
+  authRequest.setSession(null);
+
+  return res.status(200).json({ success: true });
 });
 
-// Resetare parola
-router.post("/auth/reset-password", async (req, res) => {
-  userService.resetPassword(req, res);
-});
-
-// Update user profile
-router.put("/user/update", authMiddleware, async (req, res) => {
-  userService.updateProfile(req, res);
-});
-
-module.exports = router;
+export default router;
