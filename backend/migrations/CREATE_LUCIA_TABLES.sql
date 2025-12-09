@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     password_salt VARCHAR(255) NOT NULL,
+    password_reset_token VARCHAR(255),
     joined_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_admin BOOLEAN DEFAULT FALSE,
     is_contributor BOOLEAN DEFAULT FALSE,
@@ -13,15 +14,6 @@ CREATE TABLE IF NOT EXISTS users (
     fsrs_params FLOAT[]
 );
 
--- User keys table for authentication
-CREATE TABLE IF NOT EXISTS user_key (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES users(id),
-    hashed_password TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- User sessions table
 CREATE TABLE IF NOT EXISTS user_session (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id),
@@ -30,5 +22,4 @@ CREATE TABLE IF NOT EXISTS user_session (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_user_key_user_id ON user_key(user_id);
 CREATE INDEX idx_user_session_user_id ON user_session(user_id);

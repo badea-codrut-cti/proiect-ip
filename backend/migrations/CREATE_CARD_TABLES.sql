@@ -8,13 +8,13 @@ CREATE TABLE IF NOT EXISTS card_state (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     counter_id TEXT NOT NULL REFERENCES counters(id) ON DELETE CASCADE,
-    stability FLOAT NOT NULL DEFAULT 0,
-    difficulty FLOAT NOT NULL DEFAULT 0,
-    elapsed_days INTEGER NOT NULL DEFAULT 0,
-    scheduled_days INTEGER NOT NULL DEFAULT 0,
-    reps INTEGER NOT NULL DEFAULT 0,
-    lapses INTEGER NOT NULL DEFAULT 0,
-    state INTEGER NOT NULL DEFAULT 0, -- 0=new, 1=learning, 2=review, 3=relearning
+    stability FLOAT NOT NULL DEFAULT 0 CHECK (stability >= 0),
+    difficulty FLOAT NOT NULL DEFAULT 0 CHECK (difficulty >= 0),
+    elapsed_days INTEGER NOT NULL DEFAULT 0 CHECK (elapsed_days >= 0),
+    scheduled_days INTEGER NOT NULL DEFAULT 0 CHECK (scheduled_days >= 0),
+    reps INTEGER NOT NULL DEFAULT 0 CHECK (reps >= 0),
+    lapses INTEGER NOT NULL DEFAULT 0 CHECK (lapses >= 0),
+    state INTEGER NOT NULL DEFAULT 0 CHECK (state >= 0 AND state <= 3),
     last_review TIMESTAMP,
     due TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(user_id, counter_id)
@@ -26,8 +26,9 @@ CREATE TABLE IF NOT EXISTS exercises (
     approved_by TEXT REFERENCES users(id) ON DELETE SET NULL,
     counter_id TEXT NOT NULL REFERENCES counters(id) ON DELETE CASCADE,
     sentence TEXT NOT NULL,
-    min_count INTEGER NOT NULL DEFAULT 1,
-    max_count INTEGER NOT NULL DEFAULT 10,
+    min_count FLOAT NOT NULL DEFAULT 1 CHECK (min_count >= 0),
+    max_count FLOAT NOT NULL DEFAULT 10 CHECK (max_count >= 0),
+    decimal_points INTEGER DEFAULT 0 CHECK (decimal_points >= 0),
     is_approved BOOLEAN DEFAULT FALSE
 );
 
@@ -46,11 +47,11 @@ CREATE TABLE IF NOT EXISTS reviews (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     counter_id TEXT NOT NULL REFERENCES counters(id) ON DELETE CASCADE,
     rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 4),
-    state INTEGER NOT NULL, -- card state at time of review
+    state INTEGER NOT NULL CHECK (state >= 0 AND state <= 3),
     reviewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    scheduled_days INTEGER NOT NULL DEFAULT 0,
-    elapsed_days INTEGER NOT NULL DEFAULT 0,
-    review_duration_ms INTEGER NOT NULL DEFAULT 0
+    scheduled_days INTEGER NOT NULL DEFAULT 0 CHECK (scheduled_days >= 0),
+    elapsed_days INTEGER NOT NULL DEFAULT 0 CHECK (elapsed_days >= 0),
+    review_duration_ms INTEGER NOT NULL DEFAULT 0 CHECK (review_duration_ms >= 0)
 );
 
 CREATE INDEX idx_card_state_user_id ON card_state(user_id);
