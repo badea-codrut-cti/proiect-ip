@@ -1,69 +1,89 @@
-const express = require('express');
+// routes/users.js
+import express from "express";
+import { z } from "zod";
+import bcrypt from "bcryptjs";
+import userService from "../services/userService.js";
+
 const router = express.Router();
-const userService = require('../services/userService');
 
-router.get('/', async (req, res) => {
-  try {
-    const users = await userService.getAllUsers();
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch users' });
-  }
+// middleware
+function requireAuth(req, res, next) {
+    console.log("\n=== REQUIRE AUTH (Passport) ===");
+    console.log("req.isAuthenticated():", req.isAuthenticated?.());
+    console.log("req.user:", req.user);
+
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+        return res.status(401).json({ error: "Not authenticated" });
+    }
+
+    next();
+}
+
+// GET /api/users/me
+router.get("/me", requireAuth, async (req, res) => {
+    const userId = req.user.id;
+    const profile = await userService.getProfile(userId);
+
+    if (!profile) return res.status(404).json({ error: "User not found" });
+
+    res.json(profile);
 });
 
-router.get('/:id', async (req, res) => {
-  try {
-    const user = await userService.getUserById(req.params.id);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    res.json(user);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch user' });
-  }
+// schema pentru update
+const updateSchema = z.object({
+    username: z.string().min(3),
+    email: z.string().email(),
+    newPassword: z.string().min(6).optional()
 });
 
-router.post('/', async (req, res) => {
-  try {
-    const { name, email } = req.body;
-    if (!name || !email) {
-      return res.status(400).json({ error: 'Name and email are required' });
+// PUT /api/users/me/update
+router.put("/me/update", requireAuth, async (req, res) => {
+    console.log("=== UPDATE START ===");
+
+    try {
+        const { username, email, newPassword } = updateSchema.parse(req.body);
+
+        const userId = req.user.id;
+        const normalizedEmail = email.toLowerCase();
+
+        // verificam email
+        const existing = await userService.findUserByEmail(normalizedEmail);
+        if (existing && existing.id !== userId) {
+            return res.status(400).json({ error: "Email already in use" });
+        }
+
+        // update profil
+        const updatedUser = await userService.updateProfile(
+            userId,
+            username,
+            normalizedEmail
+        );
+
+        // update parola 
+        if (newPassword) {
+            const passwordHash = await bcrypt.hash(newPassword, 10);
+            await userService.updatePassword(userId, passwordHash);
+        }
+
+        // update req user
+        req.user.username = updatedUser.username;
+        req.user.email = updatedUser.email;
+
+        res.json({
+            message: "Profile updated successfully",
+            user: updatedUser
+        });
+    } catch (err) {
+        console.error("UPDATE ERROR:", err);
+
+        if (err instanceof z.ZodError) {
+            return res
+                .status(400)
+                .json({ error: "Invalid data", details: err.errors });
+        }
+
+        res.status(500).json({ error: "Update failed" });
     }
-    
-    const newUser = await userService.createUser({ name, email });
-    res.status(201).json(newUser);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to create user' });
-  }
 });
 
-router.put('/:id', async (req, res) => {
-  try {
-    const { name, email } = req.body;
-    if (!name || !email) {
-      return res.status(400).json({ error: 'Name and email are required' });
-    }
-    
-    const updatedUser = await userService.updateUser(req.params.id, { name, email });
-    if (!updatedUser) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    res.json(updatedUser);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to update user' });
-  }
-});
-
-router.delete('/:id', async (req, res) => {
-  try {
-    const deleted = await userService.deleteUser(req.params.id);
-    if (!deleted) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-    res.json({ message: 'User deleted successfully' });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to delete user' });
-  }
-});
-
-module.exports = router;
+export default router;

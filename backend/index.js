@@ -1,33 +1,77 @@
-import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
-import authRoutes from './routes/auth.js';
+// index.js
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
+import session from "express-session";
+import dotenv from "dotenv";
+
+import authRoutes from "./routes/auth.js";
+import userRoutes from "./routes/users.js";
+import passport from "./passport.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-  credentials: true
-}));
+
+// CORS
+app.use((req, res, next) => {
+    next();
+});
+
+app.use(
+    cors({
+        origin: "http://localhost:3000",
+        credentials: true
+    })
+);
+
+// cookieParser
+app.use((req, res, next) => {
+    next();
+});
+
+app.use(cookieParser());
+
+app.use((req, res, next) => {
+    next();
+});
+
+// JSON
+app.use((req, res, next) => {
+    next();
+});
+
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Routes
-app.get('/', (req, res) => {
-  res.json({ message: 'Hello from Express backend with Lucia auth!' });
+app.use((req, res, next) => {
+    next();
 });
 
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'API is working!' });
-});
+// SESSIONS
+app.use(
+    session({
+        secret: process.env.SESSION_SECRET || "cheie_secreta",
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            httpOnly: true,
+            secure: false, 
+            sameSite: "lax"
+        }
+    })
+);
 
-// Auth routes
-app.use('/api/auth', authRoutes);
+// PASSPORT
+app.use(passport.initialize());
+app.use(passport.session());
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT}`);
+// ROUTES
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+
+// START
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on port ${PORT}`);
 });

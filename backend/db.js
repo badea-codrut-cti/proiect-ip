@@ -1,11 +1,18 @@
-const { Pool } = require('pg');
+import pkg from "pg";
+import dotenv from "dotenv";
+
+dotenv.config(); 
+
+const { Pool } = pkg;
+
+console.log("[DB] DATABASE_URL =", process.env.DATABASE_URL);
 
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'fsrs_app',
-  user: process.env.DB_USER || 'fsrs',
-  password: process.env.DB_PASSWORD || '123456',
+    connectionString: process.env.DATABASE_URL
 });
 
-module.exports = pool;
+pool.connect()
+    .then(() => console.log("[DB] Connected successfully!"))
+    .catch(err => console.error("[DB] Connection error:", err));
+
+export default pool;

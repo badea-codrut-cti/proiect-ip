@@ -1,130 +1,200 @@
+// routes/auth.js
 import express from "express";
-import { auth } from "../lucia.js";
-import { LuciaError } from "lucia";
+import { z } from "zod";
+import bcrypt from "bcryptjs";
+import passport from "../passport.js";
+import userService from "../services/userService.js";
 
 const router = express.Router();
 
-// Sign up route
-router.post("/signup", async (req, res) => {
-  const { username, password } = req.body;
-  
-  // Basic validation
-  if (typeof username !== "string" || username.length < 4 || username.length > 31) {
-    return res.status(400).json({ error: "Invalid username. Must be 4-31 characters." });
-  }
-  if (typeof password !== "string" || password.length < 6 || password.length > 255) {
-    return res.status(400).json({ error: "Invalid password. Must be 6-255 characters." });
-  }
-
-  try {
-    const user = await auth.createUser({
-      key: {
-        providerId: "username",
-        providerUserId: username.toLowerCase(),
-        password: password
-      },
-      attributes: {
-        username: username
-      }
-    });
-
-    const session = await auth.createSession({
-      userId: user.userId,
-      attributes: {}
-    });
-
-    const authRequest = auth.handleRequest(req, res);
-    authRequest.setSession(session);
-
-    return res.status(201).json({
-      success: true,
-      user: {
-        id: user.userId,
-        username: user.attributes.username
-      }
-    });
-  } catch (e) {
-    // Check for unique constraint error
-    if (e.message && e.message.includes("duplicate key value violates unique constraint")) {
-      return res.status(400).json({ error: "Username already taken" });
-    }
-    
-    console.error("Signup error:", e);
-    return res.status(500).json({ error: "An unknown error occurred" });
-  }
+// Zod schemas
+const registerSchema = z.object({
+    username: z.string().min(3),
+    email: z.string().email(),
+    password: z.string().min(6)
 });
 
-// Login route
-router.post("/login", async (req, res) => {
-  const { username, password } = req.body;
-
-  // Basic validation
-  if (typeof username !== "string" || username.length < 1 || username.length > 31) {
-    return res.status(400).json({ error: "Invalid username" });
-  }
-  if (typeof password !== "string" || password.length < 1 || password.length > 255) {
-    return res.status(400).json({ error: "Invalid password" });
-  }
-
-  try {
-    const key = await auth.useKey("username", username.toLowerCase(), password);
-    const session = await auth.createSession({
-      userId: key.userId,
-      attributes: {}
-    });
-
-    const authRequest = auth.handleRequest(req, res);
-    authRequest.setSession(session);
-
-    return res.status(200).json({
-      success: true,
-      user: {
-        id: key.userId,
-        username: key.userAttributes.username
-      }
-    });
-  } catch (e) {
-    if (e instanceof LuciaError) {
-      if (e.message === "AUTH_INVALID_KEY_ID" || e.message === "AUTH_INVALID_PASSWORD") {
-        return res.status(400).json({ error: "Incorrect username or password" });
-      }
-    }
-    
-    console.error("Login error:", e);
-    return res.status(500).json({ error: "An unknown error occurred" });
-  }
+const loginSchema = z.object({
+    email: z.string().email(),
+    password: z.string().min(6)
 });
 
-// Get current user
-router.get("/me", async (req, res) => {
-  const authRequest = auth.handleRequest(req, res);
-  const session = await authRequest.validate();
-  
-  if (!session) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
-
-  return res.status(200).json({
-    user: {
-      id: session.user.userId,
-      username: session.user.username
-    }
-  });
+const forgotSchema = z.object({
+    email: z.string().email()
 });
 
-// Logout
-router.post("/logout", async (req, res) => {
-  const authRequest = auth.handleRequest(req, res);
-  const session = await authRequest.validate();
-  
-  if (!session) {
-    return res.status(401).json({ error: "Not authenticated" });
-  }
+const resetSchema = z.object({
+    token: z.string().min(1),
+    password: z.string().min(6)
+});
 
-  await auth.invalidateSession(session.sessionId);
-  authRequest.setSession(null);
+// POST /auth/register
+router.post("/register", async (req, res) => {
+    console.log("\n=== REGISTER ATTEMPT ===");
+    console.log("[REQ BODY]:", req.body);
 
-  return res.status(200).json({ success: true });
+    try {
+        const { username, email, password } = registerSchema.parse(req.body);
+        const normalizedEmail = email.toLowerCase();
+
+        const existing = await userService.findUserByEmail(normalizedEmail);
+        if (existing) {
+            return res.status(400).json({ error: "Email already exists!" });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+
+        const user = await userService.createUser({
+            username,
+            email: normalizedEmail,
+            passwordHash
+        });
+
+        // login automat
+        req.logIn(user, (err) => {
+            if (err) {
+                console.error("[REGISTER] req.logIn error:", err);
+                return res.status(500).json({ error: "Login after register failed" });
+            }
+
+            res.status(201).json({
+                message: "User registered successfully!",
+                user
+            });
+        });
+    } catch (err) {
+        console.error("REGISTER ERROR:", err);
+
+        if (err instanceof z.ZodError) {
+            return res
+                .status(400)
+                .json({ error: "Invalid data", details: err.errors });
+        }
+
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// POST /auth/login
+router.post("/login", (req, res, next) => {
+    console.log("\n=== LOGIN ATTEMPT ===");
+    console.log("[REQ BODY]:", req.body);
+
+    try {
+        loginSchema.parse(req.body);
+    } catch (err) {
+        if (err instanceof z.ZodError) {
+            return res
+                .status(400)
+                .json({ error: "Invalid data", details: err.errors });
+        }
+        return res.status(400).json({ error: "Invalid data" });
+    }
+
+    passport.authenticate("local", (err, user, info) => {
+        if (err) {
+            console.error("[LOGIN] Error:", err);
+            return next(err);
+        }
+
+        if (!user) {
+            return res
+                .status(401)
+                .json({ error: info?.message || "Invalid email or password" });
+        }
+
+        req.logIn(user, (err) => {
+            if (err) {
+                console.error("[LOGIN] req.logIn error:", err);
+                return next(err);
+            }
+
+            return res.json({
+                message: "Logged in",
+                user
+            });
+        });
+    })(req, res, next);
+});
+
+// POST /auth/logout
+router.post("/logout", (req, res, next) => {
+    console.log("\n=== LOGOUT ATTEMPT ===");
+
+    req.logout((err) => {
+        if (err) {
+            console.error("[LOGOUT ERROR]:", err);
+            return next(err);
+        }
+
+        res.json({ message: "Logged out" });
+    });
+});
+
+// POST /auth/forgot-password
+router.post("/forgot-password", async (req, res) => {
+    console.log("\n=== FORGOT PASSWORD ATTEMPT ===");
+
+    try {
+        const { email } = forgotSchema.parse(req.body);
+        const normalizedEmail = email.toLowerCase();
+
+        const user = await userService.findUserByEmail(normalizedEmail);
+
+        if (user) {
+            console.log("[FORGOT] User found:", user.id);
+            const token = await userService.createPasswordResetToken(user.id);
+
+            console.log("[FORGOT] Temporary reset link:");
+            console.log(`http://localhost:3000/reset-password/${token}`);
+        } else {
+            console.log("[FORGOT] No user found (silent).");
+        }
+
+        res.json({
+            message: "If the email exists, a reset link has been sent."
+        });
+    } catch (err) {
+        console.error("FORGOT PASSWORD ERROR:", err);
+
+        if (err instanceof z.ZodError) {
+            return res
+                .status(400)
+                .json({ error: "Invalid data", details: err.errors });
+        }
+
+        res.status(500).json({ error: "Failed to generate reset token" });
+    }
+});
+
+// POST /auth/reset-password
+router.post("/reset-password", async (req, res) => {
+    console.log("\n=== RESET PASSWORD ATTEMPT ===");
+
+    try {
+        const { token, password } = resetSchema.parse(req.body);
+
+        const user = await userService.validateAndConsumePasswordResetToken(token);
+
+        if (!user) {
+            return res.status(400).json({ error: "Invalid or expired token" });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        await userService.updatePassword(user.id, passwordHash);
+
+        res.json({ message: "Password reset successfully" });
+    } catch (err) {
+        console.error("RESET PASSWORD ERROR:", err);
+
+        if (err instanceof z.ZodError) {
+            return res
+                .status(400)
+                .json({ error: "Invalid data", details: err.errors });
+        }
+
+        res.status(500).json({ error: "Password reset failed" });
+    }
 });
 
 export default router;
