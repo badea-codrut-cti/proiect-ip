@@ -1,17 +1,9 @@
 import express from "express";
 import { z } from "zod";
-import AuthService from "../db.js";
+import { authService, sessionMiddleware } from "../middleware/auth.js";
 import EmailService from "../email.js";
 
 const router = express.Router();
-
-const authService = new AuthService({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-});
 
 const emailService = new EmailService({
   host: process.env.SMTP_HOST,
@@ -29,25 +21,6 @@ const passwordSchema = z.string()
 
 const emailSchema = z.string().email().max(255);
 const usernameSchema = z.string().min(4).max(31);
-
-const sessionMiddleware = async (req, res, next) => {
-  const sessionId = req.cookies?.sessionId || req.headers.authorization?.replace('Bearer ', '');
-  
-  if (sessionId) {
-    try {
-      const session = await authService.validateSession(sessionId);
-      if (session) {
-        req.user = session;
-        req.session = session;
-      }
-      next();
-    } catch (error) {
-      next();
-    }
-  } else {
-    next();
-  }
-};
 
 router.post("/signup", async (req, res) => {
   const { username, password, email } = req.body;
