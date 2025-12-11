@@ -1,6 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import AuthService from "../db.js";
+import { createTransporter, sendPasswordResetEmail, sendWelcomeEmail } from "../email.js";
 
 const router = express.Router();
 
@@ -23,25 +24,26 @@ const passwordSchema = z.string()
 const emailSchema = z.string().email().max(255);
 const usernameSchema = z.string().min(4).max(31);
 
-const sessionMiddleware = (req, res, next) => {
+const sessionMiddleware = async (req, res, next) => {
   const sessionId = req.cookies?.sessionId || req.headers.authorization?.replace('Bearer ', '');
   
   if (sessionId) {
-    authService.validateSession(sessionId)
-      .then(session => {
-        if (session) {
-          req.user = session;
-          req.session = session;
-        }
-        next();
-      })
-      .catch(() => next());
+    try {
+      const session = await authService.validateSession(sessionId);
+      if (session) {
+        req.user = session;
+        req.session = session;
+      }
+      next();
+    } catch (error) {
+      next();
+    }
   } else {
     next();
   }
 };
 
-router.post("/signup", (req, res) => {
+router.post("/signup", async (req, res) => {
   const { username, password, email } = req.body;
   
   const usernameResult = usernameSchema.safeParse(username);
@@ -59,37 +61,44 @@ router.post("/signup", (req, res) => {
     return res.status(400).json({ error: emailResult.error.errors[0].message });
   }
 
-  authService.createUser(username, email, password)
-    .then(user => authService.createSession(user.id)
-      .then(session => {
-        res.cookie('sessionId', session.id, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 30 * 24 * 60 * 60 * 1000
-        });
-        
-        return res.status(201).json({
-          success: true,
-          user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            joined_at: user.joined_at
-          },
-          sessionId: session.id
-        });
-      })
-    )
-    .catch(error => {
-      if (error.message && error.message.includes('already taken')) {
-        return res.status(400).json({ error: error.message });
-      }
-      return res.status(500).json({ error: "Server error" });
+  try {
+    const user = await authService.createUser(username, email, password);
+    const session = await authService.createSession(user.id);
+    
+    const transporter = await createTransporter({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      from: process.env.SMTP_FROM,
     });
+    
+    sendWelcomeEmail(transporter, email, username);
+
+    res.cookie('sessionId', session.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 30 * 24 * 60 * 60 * 1000
+    });
+
+    return res.status(201).json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        joined_at: user.joined_at
+      },
+      sessionId: session.id
+    });
+  } catch (error) {
+    if (error.message && error.message.includes('already taken')) {
+      return res.status(400).json({ error: error.message });
+    }
+    return res.status(500).json({ error: "Server error" });
+  }
 });
 
-router.post("/login", (req, res) => {
+router.post("/login", async (req, res) => {
   const { username, password } = req.body;
   
   if (!username || username.length === 0) {
@@ -100,33 +109,32 @@ router.post("/login", (req, res) => {
     return res.status(400).json({ error: "Password required" });
   }
 
-  authService.authenticateUser(username, password)
-    .then(user => authService.createSession(user.id)
-      .then(session => {
-        res.cookie('sessionId', session.id, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
-          maxAge: 30 * 24 * 60 * 60 * 1000
-        });
-        
-        return res.status(200).json({
-          success: true,
-          user: {
-            id: user.id,
-            username: user.username,
-            email: user.email
-          },
-          sessionId: session.id
-        });
-      })
-    )
-    .catch(error => {
-      if (error.message === 'Invalid credentials') {
-        return res.status(400).json({ error: "Invalid credentials" });
-      }
-      return res.status(500).json({ error: "Server error" });
+  try {
+    const user = await authService.authenticateUser(username, password);
+    const session = await authService.createSession(user.id);
+
+    res.cookie('sessionId', session.id, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 30 * 24 * 60 * 60 * 1000
     });
+
+    return res.status(200).json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email
+      },
+      sessionId: session.id
+    });
+  } catch (error) {
+    if (error.message === 'Invalid credentials') {
+      return res.status(400).json({ error: "Invalid credentials" });
+    }
+    return res.status(500).json({ error: "Server error" });
+  }
 });
 
 router.get("/me", sessionMiddleware, (req, res) => {
@@ -183,7 +191,7 @@ router.post("/update-password", sessionMiddleware, (req, res) => {
     });
 });
 
-router.post("/request-password-reset", (req, res) => {
+router.post("/request-password-reset", async (req, res) => {
   const { email } = req.body;
   
   const emailResult = emailSchema.safeParse(email);
@@ -191,20 +199,28 @@ router.post("/request-password-reset", (req, res) => {
     return res.status(400).json({ error: emailResult.error.errors[0].message });
   }
 
-  authService.getPool().query(
-    'SELECT id FROM users WHERE email = $1',
-    [email]
-  )
-    .then(userResult => {
-      if (userResult.rows.length > 0) {
-        return authService.generatePasswordResetToken(userResult.rows[0].id)
-          .then(({ token }) => {
-            console.log(`Password reset token for ${email}: ${token}`);
-          });
-      }
-    })
-    .then(() => res.status(200).json({}))
-    .catch(() => res.status(500).json({ error: "Server error" }));
+  try {
+    const userResult = await authService.getPool().query(
+      'SELECT id FROM users WHERE email = $1',
+      [email]
+    );
+
+    if (userResult.rows.length > 0) {
+      const { token } = await authService.generatePasswordResetToken(userResult.rows[0].id);
+      
+      const transporter = await createTransporter({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT),
+        from: process.env.SMTP_FROM,
+      });
+      
+      await sendPasswordResetEmail(transporter, email, token);
+    }
+
+    return res.status(200).json({});
+  } catch (error) {
+    return res.status(500).json({ error: "Server error" });
+  }
 });
 
 router.post("/reset-password", (req, res) => {

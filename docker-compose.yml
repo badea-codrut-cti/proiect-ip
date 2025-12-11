@@ -27,8 +27,12 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - PORT=5000
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - SMTP_FROM=noreply@myapp.com
     depends_on:
       - postgres
+      - mailhog
     networks:
       - app-network
 
@@ -42,6 +46,14 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
     networks:
       - app-network
 
