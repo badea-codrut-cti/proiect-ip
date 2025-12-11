@@ -154,14 +154,11 @@ export default function Auth() {
         throw new Error(data.error || "Password reset failed");
       }
 
-      setSuccess("Password reset successful! Redirecting to login...");
-      setTimeout(() => {
-        setMode("login");
-        setPassword("");
-        setConfirmPassword("");
-        setResetToken("");
-        setSuccess("");
-      }, 2000);
+      setSuccess("Password reset successful!");
+      setMode("login");
+      setPassword("");
+      setConfirmPassword("");
+      setResetToken("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Password reset failed");
     } finally {

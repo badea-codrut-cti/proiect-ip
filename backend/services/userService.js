@@ -226,7 +226,7 @@ class UserService {
 
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       console.log("====== RESET PASSWORD EMAIL ======");
-      console.log(`Reset link: ${frontendUrl}/reset-password/${token}`);
+      console.log(`Reset link: ${frontendUrl}/reset-password?token=${token}`);
       console.log("=================================");
 
       res.json({
