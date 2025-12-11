@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -24,6 +24,15 @@ export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get("token");
+    if (tokenFromUrl) {
+      setResetToken(tokenFromUrl);
+      setMode("reset");
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -345,14 +354,7 @@ export default function Auth() {
     }
 
     if (mode === "reset") {
-      const urlParams = new URLSearchParams(window.location.search);
-      const tokenFromUrl = urlParams.get("token");
-
-      if (tokenFromUrl && !resetToken) {
-        setResetToken(tokenFromUrl);
-      }
-
-      if (tokenFromUrl || resetToken) {
+      if (resetToken) {
         return (
           <>
             <CardHeader className="space-y-1">
