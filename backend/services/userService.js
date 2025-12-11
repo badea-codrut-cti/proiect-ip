@@ -224,9 +224,9 @@ class UserService {
         [userId, token, expiresAt]
       );
 
-      // MOCK EMAIL 
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       console.log("====== RESET PASSWORD EMAIL ======");
-      console.log(`Reset link: http://localhost:3000/reset-password/${token}`);
+      console.log(`Reset link: ${frontendUrl}/reset-password/${token}`);
       console.log("=================================");
 
       res.json({
