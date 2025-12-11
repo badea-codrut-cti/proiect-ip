@@ -1,7 +1,7 @@
 import express from "express";
 import { z } from "zod";
 import AuthService from "../db.js";
-import { createTransporter, sendPasswordResetEmail, sendWelcomeEmail } from "../email.js";
+import EmailService from "../email.js";
 
 const router = express.Router();
 
@@ -11,6 +11,12 @@ const authService = new AuthService({
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
+});
+
+const emailService = new EmailService({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT),
+  from: process.env.SMTP_FROM,
 });
 
 const keyboardChars = /^[a-zA-Z0-9!@#$%^&*()_+={}\[\]|\\:;"'<>,.?/~`-]+$/;
@@ -65,13 +71,7 @@ router.post("/signup", async (req, res) => {
     const user = await authService.createUser(username, email, password);
     const session = await authService.createSession(user.id);
     
-    const transporter = await createTransporter({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT),
-      from: process.env.SMTP_FROM,
-    });
-    
-    sendWelcomeEmail(transporter, email, username);
+    emailService.sendWelcomeEmail(email, username);
 
     res.cookie('sessionId', session.id, {
       httpOnly: true,
@@ -207,14 +207,7 @@ router.post("/request-password-reset", async (req, res) => {
 
     if (userResult.rows.length > 0) {
       const { token } = await authService.generatePasswordResetToken(userResult.rows[0].id);
-      
-      const transporter = await createTransporter({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT),
-        from: process.env.SMTP_FROM,
-      });
-      
-      await sendPasswordResetEmail(transporter, email, token);
+      await emailService.sendPasswordResetEmail(email, token);
     }
 
     return res.status(200).json({});
