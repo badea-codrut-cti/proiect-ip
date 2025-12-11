@@ -1,34 +1,7 @@
 import express from "express";
-import AuthService from "../db.js";
+import { authService, sessionMiddleware } from "../middleware/auth.js";
 
 const router = express.Router();
-
-const authService = new AuthService({
-  host: process.env.DB_HOST,
-  port: Number(process.env.DB_PORT),
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-});
-
-const sessionMiddleware = async (req, res, next) => {
-  const sessionId = req.cookies?.sessionId || req.headers.authorization?.replace('Bearer ', '');
-  
-  if (sessionId) {
-    try {
-      const session = await authService.validateSession(sessionId);
-      if (session) {
-        req.user = session;
-        req.session = session;
-      }
-      next();
-    } catch (error) {
-      next();
-    }
-  } else {
-    next();
-  }
-};
 
 router.get("/:userId", async (req, res) => {
   const { userId } = req.params;
@@ -87,8 +60,8 @@ router.post("/buy-profile-picture", sessionMiddleware, async (req, res) => {
   
   const { profilePictureId } = req.body;
   
-  if (!profilePictureId) {
-    return res.status(400).json({ error: "Profile picture ID required" });
+  if (!profilePictureId || !Number.isInteger(profilePictureId) || profilePictureId <= 0) {
+    return res.status(400).json({ error: "Valid profile picture ID required" });
   }
   
   try {
@@ -186,6 +159,10 @@ router.post("/set-profile-picture", sessionMiddleware, async (req, res) => {
   }
   
   const { profilePictureId } = req.body;
+  
+  if (profilePictureId !== null && (!Number.isInteger(profilePictureId) || profilePictureId <= 0)) {
+    return res.status(400).json({ error: "Valid profile picture ID required or null" });
+  }
   
   try {
     const pool = authService.getPool();
