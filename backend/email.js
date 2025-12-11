@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const emailConfigSchema = z.object({
   host: z.string(),
@@ -68,6 +71,14 @@ class EmailService {
     };
 
     return transporter.sendMail(mailOptions);
+  }
+
+  async sendMail(mailOptions) {
+    const transporter = await this.initTransporter();
+    return transporter.sendMail({
+      from: this.from,
+      ...mailOptions
+    });
   }
 }
 
