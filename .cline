@@ -1,0 +1,108 @@
+# Project Overview
+
+This is a full-stack application for learning Japanese counting and counters using a Spaced Repetition System (SRS) with interactive exercises. The platform incorporates gamification elements (XP, levels, achievements) to make learning engaging and effective, similar to Bunpro but specifically focused on Japanese counters.
+
+## Tech Stack
+
+### Backend
+- **Express.js** (v5.2.1) with ES modules (`"type": "module"`)
+- **PostgreSQL** database with `pg` driver
+- **Custom authentication service** (`AuthService` class in `db.js`) with session management
+- **Zod** for validation
+- **bcrypt** for password hashing
+- **nodemailer** for email functionality
+- **Jest** for testing with Supertest
+
+### Frontend
+- **React** (v19.2.1) with TypeScript
+- **React Router** (v7.10.1) for routing
+- **shadcn/ui** component library with Tailwind CSS
+- **Lucide React** for icons
+- **Vite** as build tool
+
+### Infrastructure
+- **Docker** and **Docker Compose** for containerization
+- **PostgreSQL** (v15) as database service
+- **MailHog** for email testing in development
+
+## Database Conventions
+
+### Migrations
+- Migration scripts are stored in `backend/migrations/`
+- Each migration creates or modifies database tables
+- **Important**: When adding new columns to existing tables, create a new migration file with `ALTER TABLE` statements instead of modifying existing migrations
+- Migration files follow the pattern: `CREATE_*_TABLES.sql`
+- All migrations use `CREATE TABLE IF NOT EXISTS` for idempotency
+
+### Database Schema Highlights
+- **users**: User accounts with XP, FSRS parameters, and contributor/admin flags
+- **counters**: Japanese counter definitions
+- **card_state**: SRS state for user-counter pairs (FSRS algorithm)
+- **exercises**: Interactive exercises for practicing counters
+- **reviews**: Review history for spaced repetition
+- **counter_edits**: Edit proposals for counter documentation
+- **contributor_applications**: Applications for contributor status
+
+## Code Style Guidelines
+
+### Backend
+- Use ES module syntax (`import/export`)
+- Route handlers are organized in `backend/routes/`
+- Services contain business logic in `backend/services/`
+- Middleware for authentication in `backend/middleware/`
+- Use Zod for input validation
+- Follow existing patterns for error handling and response formatting
+
+### Frontend
+- Use TypeScript with strict typing
+- Components follow shadcn/ui patterns
+- Route definitions in `frontend/app/routes.ts`
+- UI components in `frontend/app/components/ui/`
+- Utility functions in `frontend/app/lib/utils.ts`
+- Use Tailwind CSS for styling with CSS variables
+
+## Development Workflow
+
+### Running the Application
+1. Use `docker-compose up --build` to start all services
+2. Frontend: http://localhost:5173
+3. Backend API: http://localhost:5000
+4. PostgreSQL: localhost:5432
+5. MailHog UI: http://localhost:8025
+
+### Testing
+- Backend: `cd backend && npm test`
+- Frontend: `cd frontend && npm test`
+- Docker tests: `docker-compose -f docker-compose.test.yml up --build`
+
+## Application Purpose & Features
+
+### Core Learning System
+- Spaced Repetition System (FSRS algorithm) for memorizing Japanese counters
+- Interactive exercises with sentence generation and counter practice
+- Progressive difficulty with decimal points and count ranges
+
+### Gamification Elements
+- XP system for completed reviews and exercises
+- Contributor system for community content creation
+- Achievement system (implied by XP and progression)
+
+### Community Features
+- Users can apply to become contributors
+- Contributors can create and edit counter exercises
+- Moderation system for approving user-generated content
+
+### User Progression
+- Personalizable retention goals (`desired_retention`)
+- Adaptive scheduling based on performance
+- Review history and statistics tracking
+
+## Important Notes for AI Assistance
+
+1. **Database Changes**: Always create new migration files for schema changes; never modify existing migrations
+2. **Code Consistency**: Follow existing patterns in the codebase for similar functionality
+3. **No Comments**: Do not add code comments unless they explain non-obvious business logic
+4. **Type Safety**: Maintain TypeScript type safety in frontend code
+5. **Error Handling**: Follow existing error response patterns in the backend
+6. **Authentication**: Use the existing custom `AuthService` class for authentication and session management
+7. **Testing**: Ensure new features include appropriate tests following existing patterns
