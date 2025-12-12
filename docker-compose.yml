@@ -6,9 +6,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "5173:5173"
     environment:
-      - REACT_APP_API_URL=http://localhost:5000
+      - VITE_API_URL=http://localhost:5000
     depends_on:
       - backend
     networks:
@@ -27,8 +27,13 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - PORT=5000
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - SMTP_FROM=noreply@myapp.com
+      - FRONTEND_URL=http://localhost:5173
     depends_on:
       - postgres
+      - mailhog
     networks:
       - app-network
 
@@ -42,6 +47,14 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
     networks:
       - app-network
 

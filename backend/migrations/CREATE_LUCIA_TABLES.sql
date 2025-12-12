@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id TEXT PRIMARY KEY,
     username VARCHAR(31) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -14,12 +14,16 @@ CREATE TABLE IF NOT EXISTS users (
     fsrs_params FLOAT[]
 );
 
-CREATE TABLE IF NOT EXISTS user_session (
+CREATE TABLE user_session (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES users(id),
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     active_expires BIGINT NOT NULL,
     idle_expires BIGINT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_user_session_user_id ON user_session(user_id);
+CREATE INDEX idx_user_session_active ON user_session(active_expires);
+CREATE INDEX idx_user_session_idle ON user_session(idle_expires);
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_username ON users(username);
