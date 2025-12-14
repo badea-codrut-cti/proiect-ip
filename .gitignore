@@ -68,3 +68,5 @@ frontend/public/cache/
 # Temporary files
 *.tmp
 *.temp
+docker-compose.yml
+frontend/Dockerfile
