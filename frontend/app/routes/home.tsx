@@ -1,21 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { Route } from "./+types/home";
 import { Link } from "react-router";
-import {
-  Bell,
-  User,
-  LayoutDashboard,
-  LogOut,
-  Trophy,
-} from "lucide-react";
+import { Bell, User, LayoutDashboard, LogOut, Trophy } from "lucide-react";
 import { Button } from "~/components/ui/button";
-import { authClient, type AuthUser } from "~/utils/authClient";
-import {
-  getAuthMode,
-  setAuthMode,
-  clearAuthMode,
-  type AuthMode,
-} from "~/utils/authMode";
+import { useAuth } from "~/context/AuthContext";
+import type { Role } from "~/types/auth";
+import React from "react";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -25,18 +15,6 @@ export function meta({}: Route.MetaArgs) {
       content: "Practice Japanese counters with Nihongo Count.",
     },
   ];
-}
-
-type Role = "learner" | "contributor" | "admin";
-
-interface UiUser {
-  id: string;
-  displayName: string;
-  avatarInitials: string;
-  role: Role;
-  level: number;
-  xp: number;
-  nextLevelXp: number;
 }
 
 interface NavItem {
@@ -56,112 +34,41 @@ const navItems: NavItem[] = [
   { id: "admin", label: "Admin Panel", to: "/admin", roles: ["admin"] },
 ];
 
-const mockUiUser: UiUser = {
-  id: "mock-user",
-  displayName: "KanaLearner",
-  avatarInitials: "KL",
-  role: "learner",
-  level: 5,
-  xp: 650,
-  nextLevelXp: 1000,
-};
-
-function mapAuthUserToUi(user: AuthUser): UiUser {
-  const initials =
-    user.username
-      .split(" ")
-      .map((p) => p[0]?.toUpperCase())
-      .slice(0, 2)
-      .join("") || "NC";
-
-  return {
-    id: user.id,
-    displayName: user.username,
-    avatarInitials: initials,
-    role: "learner",
-    level: 5,
-    xp: 650,
-    nextLevelXp: 1000,
-  };
-}
-
 export default function Home() {
-  const [user, setUser] = useState<UiUser | null>(null);
-  const [authModeState, setAuthModeState] = useState<AuthMode>("none");
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const { user, mode, loading, loginMock, logout } = useAuth();
+  const isAuthenticated = !!user;
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const [isProfileOpen, setIsProfileOpen] = React.useState(false);
+  const xpPercent =
+    user && user.nextLevelXp > 0
+      ? Math.min(100, Math.round((user.xp / user.nextLevelXp) * 100))
+      : 0;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (!profileMenuRef.current) return;
-      if (profileMenuRef.current.contains(event.target as Node)) {
-        return;
-      }
+      if (profileMenuRef.current.contains(event.target as Node)) return;
       setIsProfileOpen(false);
     }
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-
-  useEffect(() => {
-
-    
-    const mode = getAuthMode();
-
-    if (mode === "mock") {
-      setAuthModeState("mock");
-      setUser(mockUiUser);
-      return;
-    }
-
-    authClient
-      .me()
-      .then((data) => {
-        setAuthMode("real");
-        setAuthModeState("real");
-        setUser(mapAuthUserToUi(data.user));
-      })
-      .catch(() => {
-        clearAuthMode();
-        setAuthModeState("none");
-        setUser(null);
-      });
-  }, []);
-
-  const isAuthenticated = !!user;
 
   const visibleNavItems = isAuthenticated
     ? navItems.filter((item) => !item.roles || item.roles.includes(user.role))
     : [];
 
   const handleMockLogin = () => {
-    setAuthMode("mock");
-    setAuthModeState("mock");
-    setUser(mockUiUser);
+    loginMock();
     setIsProfileOpen(false);
   };
 
   const handleSignOut = async () => {
-    if (authModeState === "real") {
-      try {
-        await authClient.logout();
-      } catch {
-      }
-    }
-    clearAuthMode();
-    setAuthModeState("none");
-    setUser(null);
+    await logout();
     setIsProfileOpen(false);
   };
-
-  const xpPercent = user
-    ? Math.min(100, Math.round((user.xp / user.nextLevelXp) * 100))
-    : 0;
 
   return (
     <div className="home-page min-h-screen bg-slate-50 text-slate-900 flex flex-col">
@@ -297,7 +204,7 @@ export default function Home() {
             In progress
           </p>
 
-          {!isAuthenticated && (
+          {!isAuthenticated && !loading && (
             <Button
               asChild
               className="mt-8 rounded-full px-6 text-xs font-semibold tracking-[0.18em] uppercase"

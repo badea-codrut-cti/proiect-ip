@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { Route } from "./+types/profile";
 import { Link, useNavigate } from "react-router";
 import {
@@ -9,21 +10,11 @@ import {
   Medal,
   Trophy,
 } from "lucide-react";
-import { useEffect, useState, useRef } from "react";
+
 import { Button } from "~/components/ui/button";
-import { authClient, type AuthUser } from "~/utils/authClient";
-import {
-  profileClient,
-  type UserProfileResponse,
-} from "~/utils/profileClient";
-
-import {
-  getAuthMode,
-  setAuthMode,
-  clearAuthMode,
-  type AuthMode,
-} from "~/utils/authMode";
-
+import { useAuth } from "~/context/AuthContext";
+import { profileClient, type UserProfileResponse } from "~/utils/profileClient";
+import type { UiUser } from "~/types/auth";
 
 import avatarImg from "~/assets/avatars/user-default.png";
 import badgeFirstSteps from "~/assets/badges/first-steps.png";
@@ -43,7 +34,6 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-type Role = "learner" | "contributor" | "admin";
 
 interface UiProfile {
   id: string;
@@ -53,26 +43,11 @@ interface UiProfile {
   xp: number;
   nextLevelXp: number;
   gems: number;
-  joinedAt: string;
+  joinedAt?: string;
   streakDays: number;
   badgesCount: number;
   reviewsCount: number;
 }
-
-const mockProfile: UiProfile = {
-  id: "mock-user",
-  username: "KanaLearner",
-  email: "mock@example.com",
-  level: 5,
-  xp: 650,
-  nextLevelXp: 1000,
-  gems: 42,
-  joinedAt: "2025-01-01T00:00:00Z",
-  streakDays: 7,
-  badgesCount: 3,
-  reviewsCount: 1,
-};
-
 
 function computeLevelFromXp(xp: number): { level: number; nextLevelXp: number } {
   if (!Number.isFinite(xp) || xp < 0) {
@@ -83,7 +58,7 @@ function computeLevelFromXp(xp: number): { level: number; nextLevelXp: number } 
   return { level, nextLevelXp };
 }
 
-function mapProfileToUi(profile: UserProfileResponse): UiProfile {
+function mapRealProfileToUi(profile: UserProfileResponse): UiProfile {
   const xp = profile.xp ?? 0;
   const { level, nextLevelXp } = computeLevelFromXp(xp);
   const badgesCount = profile.owned_profile_pictures?.length ?? 0;
@@ -98,10 +73,27 @@ function mapProfileToUi(profile: UserProfileResponse): UiProfile {
     gems: profile.gems ?? 0,
     joinedAt: profile.joined_at,
     streakDays: 7,
-    reviewsCount: 1,
     badgesCount,
+    reviewsCount: 1,
   };
 }
+
+function mapMockFromUiUser(user: UiUser): UiProfile {
+  return {
+    id: user.id,
+    username: user.displayName,
+    email: "mock@example.com",
+    level: user.level,
+    xp: user.xp,
+    nextLevelXp: user.nextLevelXp,
+    gems: 42,
+    joinedAt: "2025-01-01T00:00:00Z",
+    streakDays: 7,
+    badgesCount: 3,
+    reviewsCount: 1,
+  };
+}
+
 
 const weeks = 53;
 const daysPerWeek = 7;
@@ -163,110 +155,95 @@ const badgeConfigs: BadgeConfig[] = [
   { label: "Counter King", image: badgeCounterKing },
 ];
 
+
 export default function Profile() {
   const navigate = useNavigate();
+  const { user: authUser, mode, loading: authLoading, logout } = useAuth();
 
   const [uiProfile, setUiProfile] = useState<UiProfile | null>(null);
-  const [rawProfile, setRawProfile] = useState<UserProfileResponse | null>(null);
-  const [authModeState, setAuthModeState] = useState<AuthMode>("none");
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (!profileMenuRef.current) return;
-      if (profileMenuRef.current.contains(event.target as Node)) {
-        return;
-      }
+      if (profileMenuRef.current.contains(event.target as Node)) return;
       setIsProfileOpen(false);
     }
 
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!authUser) {
+      navigate("/login");
+      return;
+    }
+
+    if (mode === "mock") {
+      setUiProfile(mapMockFromUiUser(authUser));
+      setProfileError(null);
+      setProfileLoading(false);
+      return;
+    }
+
     let cancelled = false;
+    setProfileLoading(true);
+    setProfileError(null);
 
     (async () => {
       try {
-        const mode = getAuthMode();
-        setAuthModeState(mode);
-
-        if (mode === "mock") {
-          setUiProfile(mockProfile);
-          setLoading(false);
-          return;
-        }
-
-        const me = await authClient.me();
+        const profileData = await profileClient.getProfile(authUser.id);
         if (cancelled) return;
-
-        const profileData = await profileClient.getProfile(me.user.id);
-        if (cancelled) return;
-
-        setRawProfile(profileData);
-        setUiProfile(mapProfileToUi(profileData));
+        setUiProfile(mapRealProfileToUi(profileData));
       } catch (err) {
         if (cancelled) return;
         const msg =
           err instanceof Error ? err.message : "Failed to load profile";
-
-        if (getAuthMode() !== "mock") {
-          navigate("/login");
-          return;
-        }
-
-        setError(msg);
+        setProfileError(msg);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setProfileLoading(false);
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
+  }, [authUser, mode, authLoading, navigate]);
 
   const handleLogout = async () => {
-    if (authModeState === "real") {
-      try {
-        await authClient.logout();
-      } catch {
-
-      }
-    }
-    clearAuthMode();
+    await logout();
     navigate("/");
   };
 
-
-
   const xpPercent =
     uiProfile && uiProfile.nextLevelXp > 0
-      ? Math.min(100, Math.round((uiProfile.xp / uiProfile.nextLevelXp) * 100))
+      ? Math.min(
+          100,
+          Math.round((uiProfile.xp / uiProfile.nextLevelXp) * 100)
+        )
       : 0;
 
   const ownedBadgeCount = uiProfile?.badgesCount ?? 0;
-
   const avatarSrc = avatarImg;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
       <header className="border-b bg-white">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-gradient-to-tr from-sky-400 via-indigo-500 to-pink-400" />
             <span className="text-xs font-semibold uppercase tracking-[0.25em]">
               nihongo count
             </span>
           </div>
+
           <nav className="hidden md:flex items-center gap-6 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-slate-500">
             <Link to="/" className="hover:text-slate-900 transition-colors">
               Home
@@ -379,16 +356,17 @@ export default function Profile() {
             <span>Back to Dashboard</span>
           </button>
 
-          {loading && (
+          {profileLoading && (
             <div className="text-xs text-slate-500">Loading profile…</div>
           )}
-          {error && !loading && (
+
+          {profileError && !profileLoading && (
             <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
-              {error}
+              {profileError}
             </div>
           )}
 
-          {uiProfile && !loading && (
+          {uiProfile && !profileLoading && (
             <>
               <section className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-4">
