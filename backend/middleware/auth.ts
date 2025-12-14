@@ -1,6 +1,8 @@
-import AuthService from "../db.js";
+import { Pool } from 'pg';
+import { Request, Response, NextFunction } from 'express';
+import AuthService from '../services/db.js';
 
-export const authService = new AuthService({
+const pool = new Pool({
   host: process.env.DB_HOST,
   port: Number(process.env.DB_PORT),
   database: process.env.DB_NAME,
@@ -8,9 +10,16 @@ export const authService = new AuthService({
   password: process.env.DB_PASSWORD,
 });
 
-export const sessionMiddleware = async (req, res, next) => {
+export const authService = new AuthService(pool);
+
+export interface AuthRequest extends Request {
+  user?: any;
+  session?: any;
+}
+
+export const sessionMiddleware = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   const sessionId = req.cookies?.sessionId || req.headers.authorization?.replace('Bearer ', '');
-  
+
   if (sessionId) {
     try {
       const session = await authService.validateSession(sessionId);
@@ -27,24 +36,26 @@ export const sessionMiddleware = async (req, res, next) => {
   }
 };
 
-export const adminMiddleware = async (req, res, next) => {
+export const adminMiddleware = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
   if (!req.user) {
-    return res.status(401).json({ error: "Not authenticated" });
+    res.status(401).json({ error: "Not authenticated" });
+    return;
   }
-  
+
   try {
     const result = await authService.getPool().query(
       'SELECT is_admin FROM users WHERE id = $1',
       [req.user.user_id]
     );
-    
+
     if (result.rows.length === 0 || !result.rows[0].is_admin) {
-      return res.status(403).json({ error: "Admin access required" });
+      res.status(403).json({ error: "Admin access required" });
+      return;
     }
-    
+
     next();
   } catch (error) {
     console.error('Admin middleware error:', error);
-    return res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Server error" });
   }
 };
