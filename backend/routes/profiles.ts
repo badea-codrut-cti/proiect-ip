@@ -1,5 +1,6 @@
-import express from "express";
-import { authService, sessionMiddleware } from "../middleware/auth.js";
+import express, { Response } from "express";
+import { sessionMiddleware, AuthRequest } from "../middleware/auth.js";
+import { authService } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -53,7 +54,7 @@ router.get("/:userId", async (req, res) => {
   }
 });
 
-router.post("/buy-profile-picture", sessionMiddleware, async (req, res) => {
+router.post("/buy-profile-picture", sessionMiddleware, async (req: AuthRequest, res: Response) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
   }
@@ -153,7 +154,7 @@ router.get("/profile-pictures/available", async (req, res) => {
   }
 });
 
-router.post("/set-profile-picture", sessionMiddleware, async (req, res) => {
+router.post("/set-profile-picture", sessionMiddleware, async (req: AuthRequest, res: Response) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
   }

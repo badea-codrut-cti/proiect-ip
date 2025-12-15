@@ -1,6 +1,6 @@
-import express from "express";
+import express, { Response } from "express";
 import { z } from "zod";
-import { authService, sessionMiddleware, adminMiddleware } from "../middleware/auth.js";
+import { authService, sessionMiddleware, adminMiddleware, AuthRequest } from "../middleware/auth.js";
 
 const router = express.Router();
 
@@ -29,14 +29,14 @@ router.get("/pending", sessionMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-router.post("/", sessionMiddleware, async (req, res) => {
+router.post("/", sessionMiddleware, async (req: AuthRequest, res: Response) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
   const validationResult = counterEditSchema.safeParse(req.body);
   if (!validationResult.success) {
-    return res.status(400).json({ error: validationResult.error.errors[0].message });
+    return res.status(400).json({ error: validationResult.error.issues[0].message });
   }
 
   const { counter_id, content } = validationResult.data;
@@ -92,7 +92,7 @@ router.post("/", sessionMiddleware, async (req, res) => {
   }
 });
 
-router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req, res) => {
+router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   const editId = req.params.id;
   const adminId = req.user.user_id;
 
@@ -142,7 +142,7 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req, res)
   }
 });
 
-router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req, res) => {
+router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   const editId = req.params.id;
   const adminId = req.user.user_id;
   const { reason } = req.body;

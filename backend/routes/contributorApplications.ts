@@ -1,15 +1,20 @@
-import express from "express";
+import express, { Response } from "express";
 import { z } from "zod";
-import { authService, sessionMiddleware, adminMiddleware } from "../middleware/auth.js";
-import EmailService from "../email.js";
+import nodemailer from "nodemailer";
+import { authService, sessionMiddleware, adminMiddleware, AuthRequest } from "../middleware/auth.js";
+import EmailService from "../services/email.js";
 
 const router = express.Router();
 
-const emailService = new EmailService({
+const emailService = new EmailService(nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: Number(process.env.SMTP_PORT),
-  from: process.env.SMTP_FROM,
-});
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER || 'mailhog',
+    pass: process.env.SMTP_PASS || 'mailhog'
+  }
+}));
 
 const applicationSchema = z.object({
   description: z.string().min(1).max(5000),
@@ -33,14 +38,14 @@ router.get("/pending", sessionMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-router.post("/", sessionMiddleware, async (req, res) => {
+router.post("/", sessionMiddleware, async (req: AuthRequest, res: Response) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
   const validationResult = applicationSchema.safeParse(req.body);
   if (!validationResult.success) {
-    return res.status(400).json({ error: validationResult.error.errors[0].message });
+    return res.status(400).json({ error: validationResult.error.issues[0].message });
   }
 
   const { description, jlpt_level } = validationResult.data;
@@ -51,11 +56,11 @@ router.post("/", sessionMiddleware, async (req, res) => {
       'SELECT is_contributor FROM users WHERE id = $1',
       [userId]
     );
-    
+
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     if (userResult.rows[0].is_contributor) {
       return res.status(400).json({ error: "User is already a contributor" });
     }
@@ -64,34 +69,34 @@ router.post("/", sessionMiddleware, async (req, res) => {
       'SELECT id FROM contributor_applications WHERE user_id = $1 AND status = $2',
       [userId, 'pending']
     );
-    
+
     if (pendingResult.rows.length > 0) {
       return res.status(400).json({ error: "You already have a pending application" });
     }
 
     const rejectedResult = await authService.getPool().query(
-      `SELECT id, applied_at FROM contributor_applications 
-       WHERE user_id = $1 AND status = 'rejected' 
+      `SELECT id, applied_at FROM contributor_applications
+       WHERE user_id = $1 AND status = 'rejected'
        ORDER BY applied_at DESC LIMIT 1`,
       [userId]
     );
-    
+
     if (rejectedResult.rows.length > 0) {
       const lastRejected = new Date(rejectedResult.rows[0].applied_at);
       const threeMonthsAgo = new Date();
       threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-      
+
       if (lastRejected > threeMonthsAgo) {
-        return res.status(400).json({ 
-          error: "You can only reapply 3 months after a rejected application" 
+        return res.status(400).json({
+          error: "You can only reapply 3 months after a rejected application"
         });
       }
     }
 
     const result = await authService.getPool().query(
-      `INSERT INTO contributor_applications 
-       (user_id, description, jlpt_level) 
-       VALUES ($1, $2, $3) 
+      `INSERT INTO contributor_applications
+       (user_id, description, jlpt_level)
+       VALUES ($1, $2, $3)
        RETURNING id, applied_at, status`,
       [userId, description, jlpt_level || null]
     );
@@ -100,7 +105,7 @@ router.post("/", sessionMiddleware, async (req, res) => {
       'SELECT email FROM users WHERE id = $1',
       [userId]
     );
-    
+
     if (userEmailResult.rows.length > 0) {
       try {
         await emailService.sendMail({
@@ -129,7 +134,7 @@ router.post("/", sessionMiddleware, async (req, res) => {
   }
 });
 
-router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req, res) => {
+router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   const applicationId = req.params.id;
   const adminId = req.user.user_id;
 
@@ -194,7 +199,7 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req, res)
   }
 });
 
-router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req, res) => {
+router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   const applicationId = req.params.id;
   const adminId = req.user.user_id;
   const { reason } = req.body;
@@ -256,7 +261,7 @@ router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req, res) 
   }
 });
 
-router.get("/my-applications", sessionMiddleware, async (req, res) => {
+router.get("/my-applications", sessionMiddleware, async (req: AuthRequest, res: Response) => {
   if (!req.user) {
     return res.status(401).json({ error: "Not authenticated" });
   }

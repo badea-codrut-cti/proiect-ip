@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Application } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
@@ -10,7 +10,7 @@ import exercisesRoutes from './routes/exercises.js';
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT;
+const PORT = parseInt(process.env.PORT || '3000');
 
 app.use(cors({
   origin: process.env.FRONTEND_URL,

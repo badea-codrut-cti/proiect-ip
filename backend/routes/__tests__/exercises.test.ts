@@ -1,19 +1,21 @@
 import request from 'supertest';
 import express from 'express';
 import exercisesRouter from '../exercises.js';
-import { authService, sessionMiddleware, adminMiddleware } from '../../middleware/auth.js';
+
+// Mock the middleware and authService - define mockQuery at module level
+const mockQuery = jest.fn();
 
 jest.mock('../../middleware/auth.js', () => ({
   authService: {
     getPool: jest.fn(() => ({
-      query: jest.fn()
+      query: mockQuery
     }))
   },
-  sessionMiddleware: (req, res, next) => {
+  sessionMiddleware: (req: any, res: any, next: any) => {
     req.user = { user_id: 'test-user-id', username: 'testuser', email: 'test@example.com' };
     next();
   },
-  adminMiddleware: (req, res, next) => {
+  adminMiddleware: (req: any, res: any, next: any) => {
     req.user = { user_id: 'admin-user-id', username: 'admin', email: 'admin@example.com' };
     next();
   }
@@ -26,6 +28,7 @@ app.use('/exercises', exercisesRouter);
 describe('Exercises Routes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockQuery.mockReset();
   });
 
   describe('GET /exercises/pending', () => {
@@ -46,7 +49,7 @@ describe('Exercises Routes', () => {
         }
       ];
 
-      authService.getPool().query.mockResolvedValueOnce({ rows: mockExercises });
+      mockQuery.mockResolvedValueOnce({ rows: mockExercises });
 
       const response = await request(app)
         .get('/exercises/pending')
@@ -72,7 +75,7 @@ describe('Exercises Routes', () => {
         created_at: new Date().toISOString()
       };
 
-      authService.getPool().query
+      mockQuery
         .mockResolvedValueOnce({ rows: [mockUser] })
         .mockResolvedValueOnce({ rows: [mockCounter] })
         .mockResolvedValueOnce({ rows: [mockExercise] });
@@ -95,7 +98,7 @@ describe('Exercises Routes', () => {
     it('should reject exercise without <ans> placeholder', async () => {
       const mockUser = { is_contributor: true };
 
-      authService.getPool().query.mockResolvedValueOnce({ rows: [mockUser] });
+      mockQuery.mockResolvedValueOnce({ rows: [mockUser] });
 
       const response = await request(app)
         .post('/exercises')
@@ -114,7 +117,7 @@ describe('Exercises Routes', () => {
     it('should reject exercise from non-contributor', async () => {
       const mockUser = { is_contributor: false };
 
-      authService.getPool().query.mockResolvedValueOnce({ rows: [mockUser] });
+      mockQuery.mockResolvedValueOnce({ rows: [mockUser] });
 
       const response = await request(app)
         .post('/exercises')
@@ -144,7 +147,7 @@ describe('Exercises Routes', () => {
         status: 'pending'
       };
 
-      authService.getPool().query
+      mockQuery
         .mockResolvedValueOnce({})
         .mockResolvedValueOnce({ rows: [mockExercise] })
         .mockResolvedValueOnce({})
@@ -159,7 +162,7 @@ describe('Exercises Routes', () => {
     });
 
     it('should reject approval for non-existent exercise', async () => {
-      authService.getPool().query
+      mockQuery
         .mockResolvedValueOnce({})
         .mockResolvedValueOnce({ rows: [] })
         .mockResolvedValueOnce({});
@@ -185,7 +188,7 @@ describe('Exercises Routes', () => {
         status: 'pending'
       };
 
-      authService.getPool().query
+      mockQuery
         .mockResolvedValueOnce({})
         .mockResolvedValueOnce({ rows: [mockExercise] })
         .mockResolvedValueOnce({})
