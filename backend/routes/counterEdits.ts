@@ -40,7 +40,7 @@ router.post("/", sessionMiddleware, async (req: AuthRequest, res: Response) => {
   }
 
   const { counter_id, content } = validationResult.data;
-  const userId = req.user.user_id;
+  const userId = req.user.id;
 
   try {
     const userResult = await authService.getPool().query(
@@ -94,7 +94,7 @@ router.post("/", sessionMiddleware, async (req: AuthRequest, res: Response) => {
 
 router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   const editId = req.params.id;
-  const adminId = req.user.user_id;
+  const adminId = req.user.id;
 
   try {
     await authService.getPool().query('BEGIN');
@@ -144,7 +144,7 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: Auth
 
 router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   const editId = req.params.id;
-  const adminId = req.user.user_id;
+  const adminId = req.user.id;
   const { reason } = req.body;
 
   try {
