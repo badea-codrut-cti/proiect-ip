@@ -73,7 +73,7 @@ router.post("/signup", async (req: AuthRequest, res: Response): Promise<void> =>
       },
       session: {
         id: session.id,
-        expires: new Date(session.active_expires).toISOString()
+	expires: new Date(Number(session.active_expires)).toISOString()
       }
     });
   } catch (error: any) {
@@ -104,7 +104,7 @@ router.post("/login", async (req: AuthRequest, res: Response): Promise<void> => 
       },
       session: {
         id: session.id,
-        expires: new Date(session.active_expires).toISOString()
+	expires: new Date(Number(session.active_expires)).toISOString()
       }
     });
   } catch (error: any) {
