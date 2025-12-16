@@ -38,24 +38,35 @@ export interface AuthUser {
 
 export const authClient = {
   signup: (username: string, email: string, password: string) =>
-    apiFetch<{
-      success: boolean;
-      user: AuthUser;
-      sessionId: string;
-    }>("/api/auth/signup", {
-      method: "POST",
-      body: JSON.stringify({ username, email, password }),
-    }),
+  apiFetch<{
+    message: string;
+    user: AuthUser;
+    session: {
+      id: string;
+      expires: string;
+    };
+  }>("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify({ username, email, password }),
+  }),
 
-  login: (username: string, password: string) =>
+
+   login: (identifier: string, password: string) =>
     apiFetch<{
-      success: boolean;
+      message: string;
       user: AuthUser;
-      sessionId: string;
+      session: {
+        id: string;
+        expires: string;
+      };
     }>("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({
+        identifier, 
+        password,
+      }),
     }),
+
 
   me: () =>
     apiFetch<{ user: AuthUser }>("/api/auth/me", {
