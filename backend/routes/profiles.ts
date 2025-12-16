@@ -81,7 +81,7 @@ router.post("/buy-profile-picture", sessionMiddleware, async (req: AuthRequest, 
     
     const ownershipResult = await pool.query(
       'SELECT 1 FROM user_profile_pictures WHERE user_id = $1 AND profile_picture_id = $2',
-      [req.user.user_id, profilePictureId]
+      [req.user.id, profilePictureId]
     );
     
     if (ownershipResult.rows.length > 0) {
@@ -90,7 +90,7 @@ router.post("/buy-profile-picture", sessionMiddleware, async (req: AuthRequest, 
     
     const userResult = await pool.query(
       'SELECT gems FROM users WHERE id = $1',
-      [req.user.user_id]
+      [req.user.id]
     );
     
     if (userResult.rows.length === 0) {
@@ -112,12 +112,12 @@ router.post("/buy-profile-picture", sessionMiddleware, async (req: AuthRequest, 
     try {
       await pool.query(
         'UPDATE users SET gems = gems - $1 WHERE id = $2',
-        [picture.cost, req.user.user_id]
+        [picture.cost, req.user.id]
       );
       
       await pool.query(
         'INSERT INTO user_profile_pictures (user_id, profile_picture_id) VALUES ($1, $2)',
-        [req.user.user_id, profilePictureId]
+        [req.user.id, profilePictureId]
       );
       
       await pool.query('COMMIT');
@@ -171,7 +171,7 @@ router.post("/set-profile-picture", sessionMiddleware, async (req: AuthRequest, 
     if (profilePictureId !== null) {
       const ownershipResult = await pool.query(
         'SELECT 1 FROM user_profile_pictures WHERE user_id = $1 AND profile_picture_id = $2',
-        [req.user.user_id, profilePictureId]
+        [req.user.id, profilePictureId]
       );
       
       if (ownershipResult.rows.length === 0) {
@@ -181,7 +181,7 @@ router.post("/set-profile-picture", sessionMiddleware, async (req: AuthRequest, 
     
     await pool.query(
       'UPDATE users SET current_profile_picture_id = $1 WHERE id = $2',
-      [profilePictureId, req.user.user_id]
+      [profilePictureId, req.user.id]
     );
     
     return res.status(200).json({ success: true });
