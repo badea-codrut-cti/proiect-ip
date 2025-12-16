@@ -49,7 +49,7 @@ router.post("/", sessionMiddleware, async (req: AuthRequest, res: Response) => {
   }
 
   const { description, jlpt_level } = validationResult.data;
-  const userId = req.user.user_id;
+  const userId = req.user.id;
 
   try {
     const userResult = await authService.getPool().query(
@@ -136,7 +136,7 @@ router.post("/", sessionMiddleware, async (req: AuthRequest, res: Response) => {
 
 router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   const applicationId = req.params.id;
-  const adminId = req.user.user_id;
+  const adminId = req.user.id;
 
   try {
     await authService.getPool().query('BEGIN');
@@ -201,7 +201,7 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: Auth
 
 router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   const applicationId = req.params.id;
-  const adminId = req.user.user_id;
+  const adminId = req.user.id;
   const { reason } = req.body;
 
   try {
@@ -272,7 +272,7 @@ router.get("/my-applications", sessionMiddleware, async (req: AuthRequest, res: 
        FROM contributor_applications 
        WHERE user_id = $1
        ORDER BY applied_at DESC`,
-      [req.user.user_id]
+      [req.user.id]
     );
     
     return res.status(200).json(result.rows);
