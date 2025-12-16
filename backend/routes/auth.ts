@@ -64,18 +64,23 @@ router.post("/signup", async (req: AuthRequest, res: Response): Promise<void> =>
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
 
-    res.status(201).json({
-      message: "User created successfully",
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      },
-      session: {
-        id: session.id,
-        expires: new Date(session.active_expires).toISOString()
-      }
-    });
+    const expiresMs = Number(session.active_expires);
+const expires =
+  Number.isFinite(expiresMs) ? new Date(expiresMs).toISOString() : null;
+
+res.status(201).json({
+  message: "User created successfully",
+  user: {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+  },
+  session: {
+    id: session.id,
+    expires,
+  },
+});
+
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
@@ -95,18 +100,22 @@ router.post("/login", async (req: AuthRequest, res: Response): Promise<void> => 
       maxAge: 30 * 24 * 60 * 60 * 1000
     });
 
-    res.json({
-      message: "Login successful",
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email
-      },
-      session: {
-        id: session.id,
-        expires: new Date(session.active_expires).toISOString()
-      }
-    });
+    const expiresMs = Number(session.active_expires);
+const expires =
+  Number.isFinite(expiresMs) ? new Date(expiresMs).toISOString() : null;
+
+res.json({
+  message: "Login successful",
+  user: {
+    id: user.id,
+    username: user.username,
+    email: user.email,
+  },
+  session: {
+    id: session.id,
+    expires,
+  },
+});
   } catch (error: any) {
     res.status(401).json({ error: error.message });
   }

@@ -12,9 +12,9 @@ import {
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 
-import { authClient } from "~/utils/authClient";
-import { setAuthMode } from "~/utils/authMode";
 import { ThemeToggle } from "~/components/ThemeToggle";
+import { setAuthMode } from "~/utils/authMode";
+import { authClient } from "~/utils/authClient";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -27,16 +27,16 @@ type ViewMode = "login" | "signup" | "reset";
 
 export default function Auth() {
   const [mode, setMode] = useState<ViewMode>("login");
-  const [username, setUsername] = useState("");
+
+  const [identifier, setIdentifier] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [resetToken, setResetToken] = useState("");
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -54,7 +54,7 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      await authClient.login(username, password);
+      await authClient.login(identifier, password);
       setAuthMode("real");
       window.location.href = "/";
     } catch (err) {
@@ -77,7 +77,7 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      await authClient.signup(username, email, password);
+      await authClient.signup(identifier, email, password);
       setAuthMode("real");
       window.location.href = "/";
     } catch (err) {
@@ -94,23 +94,7 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${apiUrl}/api/auth/request-password-reset`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email }),
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to send reset email");
-      }
-
+      await authClient.requestPasswordReset(email);
       setSuccess("Password reset link sent to your email");
     } catch (err) {
       setError(
@@ -134,20 +118,7 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${apiUrl}/api/auth/reset-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token: resetToken, newPassword: password }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Password reset failed");
-      }
-
+      await authClient.resetPassword(resetToken, password);
       setSuccess("Password reset successful!");
       setMode("login");
       setPassword("");
@@ -164,7 +135,7 @@ export default function Auth() {
     setMode(newMode);
     setError("");
     setSuccess("");
-    setUsername("");
+    setIdentifier("");
     setEmail("");
     setPassword("");
     setConfirmPassword("");
@@ -190,17 +161,17 @@ export default function Auth() {
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-2">
             <label
-              htmlFor="username"
+              htmlFor="identifier"
               className="text-sm font-medium text-slate-700 dark:text-slate-200"
             >
-              Username
+              Username or Email
             </label>
             <Input
-              id="username"
+              id="identifier"
               type="text"
-              placeholder="your.username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              placeholder="your.username or you@example.com"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               required
               disabled={isLoading}
             />
@@ -278,17 +249,17 @@ export default function Auth() {
         <form onSubmit={handleSignup} className="space-y-4">
           <div className="space-y-2">
             <label
-              htmlFor="username"
+              htmlFor="signup-username"
               className="text-sm font-medium text-slate-700 dark:text-slate-200"
             >
               Username
             </label>
             <Input
-              id="username"
+              id="signup-username"
               type="text"
               placeholder="Choose a username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               required
               disabled={isLoading}
             />
@@ -546,7 +517,6 @@ export default function Auth() {
           <Link to="/">← Back to Home</Link>
         </Button>
       </div>
-
       <div className="absolute top-4 right-4">
         <ThemeToggle />
       </div>
