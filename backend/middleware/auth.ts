@@ -24,8 +24,13 @@ export const sessionMiddleware = async (req: AuthRequest, res: Response, next: N
     try {
       const session = await authService.validateSession(sessionId);
       if (session) {
-        req.user = session;
+        
         req.session = session;
+        req.user = {
+        id: session.user_id,
+        username: session.username,
+        email: session.email,
+        };
       }
       next();
     } catch (error) {
@@ -45,7 +50,7 @@ export const adminMiddleware = async (req: AuthRequest, res: Response, next: Nex
   try {
     const result = await authService.getPool().query(
       'SELECT is_admin FROM users WHERE id = $1',
-      [req.user.user_id]
+      [req.user.id]
     );
 
     if (result.rows.length === 0 || !result.rows[0].is_admin) {
