@@ -6,6 +6,8 @@ import authRoutes from './routes/auth.js';
 import profilesRoutes from './routes/profiles.js';
 import contributorApplicationsRoutes from './routes/contributorApplications.js';
 import exercisesRoutes from './routes/exercises.js';
+import exerciseAttemptsRoutes from "./routes/exerciseAttempts.js";
+
 
 dotenv.config();
 
@@ -32,6 +34,9 @@ app.use('/api/auth', authRoutes);
 app.use('/api/profiles', profilesRoutes);
 app.use('/api/contributor-applications', contributorApplicationsRoutes);
 app.use('/api/exercises', exercisesRoutes);
+
+app.use("/api/exercise-attempts", exerciseAttemptsRoutes);
+
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
