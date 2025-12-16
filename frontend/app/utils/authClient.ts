@@ -67,7 +67,6 @@ export const authClient = {
       }),
     }),
 
-
   me: () =>
     apiFetch<{ user: AuthUser }>("/api/auth/me", {
       method: "GET",
@@ -79,7 +78,7 @@ export const authClient = {
     }),
 
   requestPasswordReset: (email: string) =>
-    apiFetch<{}>("/api/auth/request-password-reset", {
+    apiFetch<{}>("/api/auth/forgot-password", {
       method: "POST",
       body: JSON.stringify({ email }),
     }),

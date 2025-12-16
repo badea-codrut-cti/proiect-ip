@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type { Route } from "./+types/home";
 import { Link } from "react-router";
 import { Bell, User, LayoutDashboard, LogOut, Trophy } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { useAuth } from "~/context/AuthContext";
 import type { Role } from "~/types/auth";
-import { ThemeToggle } from "~/components/ThemeToggle";
+import React from "react";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -35,12 +35,11 @@ const navItems: NavItem[] = [
 ];
 
 export default function Home() {
-  const { user, loading, loginMock, logout } = useAuth();
+  const { user, mode, loading, loginMock, logout } = useAuth();
   const isAuthenticated = !!user;
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-
+  const [isProfileOpen, setIsProfileOpen] = React.useState(false);
   const xpPercent =
     user && user.nextLevelXp > 0
       ? Math.min(100, Math.round((user.xp / user.nextLevelXp) * 100))
@@ -72,23 +71,23 @@ export default function Home() {
   };
 
   return (
-    <div className="home-page min-h-screen bg-slate-50 text-slate-900 flex flex-col dark:bg-slate-950 dark:text-slate-50">
-      <header className="border-b bg-white dark:bg-slate-900 dark:border-slate-800">
+    <div className="home-page min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+      <header className="border-b bg-white">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-gradient-to-tr from-sky-400 via-indigo-500 to-pink-400" />
-            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-900 dark:text-slate-100">
+            <span className="text-xs font-semibold uppercase tracking-[0.25em]">
               nihongo count
             </span>
           </div>
 
           {isAuthenticated && (
-            <nav className="hidden md:flex items-center gap-6 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+            <nav className="hidden md:flex items-center gap-6 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-slate-500">
               {visibleNavItems.map((item) => (
                 <Link
                   key={item.id}
                   to={item.to}
-                  className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+                  className="hover:text-slate-900 transition-colors"
                 >
                   {item.label}
                 </Link>
@@ -97,16 +96,14 @@ export default function Home() {
           )}
 
           <div className="flex items-center gap-3">
-            <ThemeToggle />
-
             {isAuthenticated && user ? (
               <>
                 <button
                   type="button"
-                  className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
                   aria-label="Notifications"
                 >
-                  <Bell className="h-4 w-4 text-slate-600 dark:text-slate-200" />
+                  <Bell className="h-4 w-4 text-slate-600" />
                   <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500" />
                 </button>
 
@@ -114,7 +111,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={() => setIsProfileOpen((open) => !open)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition-colors dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                    className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 transition-colors"
                     aria-haspopup="true"
                     aria-expanded={isProfileOpen}
                   >
@@ -122,21 +119,21 @@ export default function Home() {
                   </button>
 
                   {isProfileOpen && (
-                    <div className="absolute right-0 mt-3 w-64 rounded-xl border border-slate-200 bg-white py-3 shadow-lg text-left dark:border-slate-700 dark:bg-slate-900">
-                      <div className="px-4 pb-3 border-b border-slate-100 dark:border-slate-700">
-                        <div className="text-xs font-semibold text-slate-900 dark:text-slate-50">
+                    <div className="absolute right-0 mt-3 w-64 rounded-xl border border-slate-200 bg-white py-3 shadow-lg text-left">
+                      <div className="px-4 pb-3 border-b border-slate-100">
+                        <div className="text-xs font-semibold text-slate-900">
                           {user.displayName}
                         </div>
-                        <div className="mt-1 text-[0.7rem] text-slate-500 dark:text-slate-300">
+                        <div className="mt-1 text-[0.7rem] text-slate-500">
                           Level {user.level}
                         </div>
-                        <div className="mt-2 h-1.5 rounded-full bg-slate-100 dark:bg-slate-700 overflow-hidden">
+                        <div className="mt-2 h-1.5 rounded-full bg-slate-100 overflow-hidden">
                           <div
                             className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-sky-400"
                             style={{ width: `${xpPercent}%` }}
                           />
                         </div>
-                        <div className="mt-1 text-[0.7rem] text-slate-400 dark:text-slate-400">
+                        <div className="mt-1 text-[0.7rem] text-slate-400">
                           {user.xp}/{user.nextLevelXp} XP
                         </div>
                       </div>
@@ -144,7 +141,7 @@ export default function Home() {
                       <div className="mt-2 flex flex-col gap-1 px-1 text-sm">
                         <Link
                           to="/profile"
-                          className="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-100"
+                          className="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-50 text-slate-700"
                           onClick={() => setIsProfileOpen(false)}
                         >
                           <User className="h-4 w-4" />
@@ -153,7 +150,7 @@ export default function Home() {
 
                         <Link
                           to="/settings"
-                          className="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-100"
+                          className="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-50 text-slate-700"
                           onClick={() => setIsProfileOpen(false)}
                         >
                           <LayoutDashboard className="h-4 w-4" />
@@ -162,7 +159,7 @@ export default function Home() {
 
                         <button
                           type="button"
-                          className="mt-1 flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+                          className="mt-1 flex items-center gap-2 rounded-md px-3 py-1.5 text-xs text-red-600 hover:bg-red-50"
                           onClick={handleSignOut}
                         >
                           <LogOut className="h-4 w-4" />
@@ -198,12 +195,12 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="flex-1 bg-slate-50 dark:bg-slate-950">
+      <main className="flex-1 bg-slate-50">
         <section className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-6xl flex-col items-center justify-center px-4 py-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-semibold tracking-[0.35em] uppercase text-slate-900 dark:text-slate-50">
+          <h1 className="text-4xl md:text-5xl font-semibold tracking-[0.35em] uppercase text-slate-900">
             NIHONGO COUNT
           </h1>
-          <p className="mt-3 text-[0.7rem] uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">
+          <p className="mt-3 text-[0.7rem] uppercase tracking-[0.28em] text-slate-400">
             In progress
           </p>
 

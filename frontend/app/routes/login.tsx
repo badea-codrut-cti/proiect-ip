@@ -1,6 +1,8 @@
-import { useEffect, useState, type FormEvent } from "react";
-import type { Route } from "./+types/login";
+import { useEffect, useState, type FormEvent, type JSX } from "react";
 import { Link } from "react-router";
+import { LockKeyhole } from "lucide-react";
+import { setAuthMode } from "~/utils/authMode";
+
 
 import {
   Card,
@@ -11,22 +13,19 @@ import {
 } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-
 import { authClient } from "~/utils/authClient";
-import { setAuthMode } from "~/utils/authMode";
-import { ThemeToggle } from "~/components/ThemeToggle";
 
-export function meta({}: Route.MetaArgs) {
+export function meta() { 
   return [
-    { title: "Login – Nihongo Count" },
-    { name: "description", content: "Login to your Nihongo Count account" },
+    { title: "Login" },
+    { name: "description", content: "Login to your account" },
   ];
 }
 
-type ViewMode = "login" | "signup" | "reset";
+type AuthMode = "login" | "signup" | "reset";
 
 export default function Auth() {
-  const [mode, setMode] = useState<ViewMode>("login");
+  const [mode, setMode] = useState<AuthMode>("login");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -36,7 +35,6 @@ export default function Auth() {
   const [success, setSuccess] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -55,6 +53,7 @@ export default function Auth() {
 
     try {
       await authClient.login(username, password);
+      
       setAuthMode("real");
       window.location.href = "/";
     } catch (err) {
@@ -76,6 +75,7 @@ export default function Auth() {
 
     setIsLoading(true);
 
+
     try {
       await authClient.signup(username, email, password);
       setAuthMode("real");
@@ -94,23 +94,7 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(
-        `${apiUrl}/api/auth/request-password-reset`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email }),
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to send reset email");
-      }
-
+      await authClient.requestPasswordReset(email);
       setSuccess("Password reset link sent to your email");
     } catch (err) {
       setError(
@@ -132,22 +116,9 @@ export default function Auth() {
     }
 
     setIsLoading(true);
-
+    
     try {
-      const response = await fetch(`${apiUrl}/api/auth/reset-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token: resetToken, newPassword: password }),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Password reset failed");
-      }
-
+      await authClient.resetPassword(resetToken, password);
       setSuccess("Password reset successful!");
       setMode("login");
       setPassword("");
@@ -160,7 +131,7 @@ export default function Auth() {
     }
   };
 
-  const switchMode = (newMode: ViewMode) => {
+  const switchMode = (newMode: AuthMode) => {
     setMode(newMode);
     setError("");
     setSuccess("");
@@ -168,30 +139,29 @@ export default function Auth() {
     setEmail("");
     setPassword("");
     setConfirmPassword("");
+    if (newMode !== "reset") setResetToken("");
   };
 
-  const renderLoginForm = () => (
+  const renderLogin = () => (
     <>
-      <CardHeader className="space-y-4 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white shadow-md dark:bg-slate-100 dark:text-slate-900">
-          <span className="text-lg" aria-hidden="true">
-            🔒
-          </span>
+      <CardHeader className="space-y-1 text-center">
+        <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-white">
+          <LockKeyhole className="h-4 w-4" />
         </div>
-        <CardTitle className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+        <CardTitle className="text-lg font-semibold tracking-wide">
           Welcome back
         </CardTitle>
-        <CardDescription className="text-slate-500 dark:text-slate-400">
+        <CardDescription className="text-xs text-slate-500">
           Enter your credentials to access your account
         </CardDescription>
       </CardHeader>
 
       <CardContent>
         <form onSubmit={handleLogin} className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label
               htmlFor="username"
-              className="text-sm font-medium text-slate-700 dark:text-slate-200"
+              className="text-xs font-medium text-slate-700"
             >
               Username
             </label>
@@ -206,10 +176,10 @@ export default function Auth() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label
               htmlFor="password"
-              className="text-sm font-medium text-slate-700 dark:text-slate-200"
+              className="text-xs font-medium text-slate-700"
             >
               Password
             </label>
@@ -225,27 +195,29 @@ export default function Auth() {
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
+            <div className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-center text-xs text-red-600">
+              {error}
+            </div>
           )}
           {success && (
-            <div className="text-green-500 text-sm text-center">
+            <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-center text-xs text-emerald-700">
               {success}
             </div>
           )}
 
           <Button
             type="submit"
-            className="w-full"
+            className="mt-2 w-full rounded-full text-xs font-semibold uppercase tracking-[0.18em]"
             disabled={isLoading}
           >
             {isLoading ? "Logging in..." : "Login"}
           </Button>
 
-          <div className="flex flex-col gap-2 text-sm text-center">
+          <div className="mt-4 flex flex-col gap-2 text-center text-xs text-slate-600">
             <button
               type="button"
               onClick={() => switchMode("reset")}
-              className="text-blue-600 hover:underline"
+              className="hover:underline cursor-pointer"
               disabled={isLoading}
             >
               Forgot password?
@@ -253,7 +225,7 @@ export default function Auth() {
             <button
               type="button"
               onClick={() => switchMode("signup")}
-              className="text-blue-600 hover:underline"
+              className="hover:underline cursor-pointer"
               disabled={isLoading}
             >
               New user? Create an account
@@ -264,22 +236,23 @@ export default function Auth() {
     </>
   );
 
-  const renderSignupForm = () => (
+  const renderSignup = () => (
     <>
-      <CardHeader className="space-y-2 text-center">
-        <CardTitle className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
-          Create an account
+      <CardHeader className="space-y-1 text-center">
+        <CardTitle className="text-lg font-semibold tracking-wide">
+          Create account
         </CardTitle>
-        <CardDescription className="text-slate-500 dark:text-slate-400">
-          Start tracking your Japanese counters
+        <CardDescription className="text-xs text-slate-500">
+          Sign up to start using Nihongo Count
         </CardDescription>
       </CardHeader>
+
       <CardContent>
         <form onSubmit={handleSignup} className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label
               htmlFor="username"
-              className="text-sm font-medium text-slate-700 dark:text-slate-200"
+              className="text-xs font-medium text-slate-700"
             >
               Username
             </label>
@@ -294,10 +267,10 @@ export default function Auth() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label
               htmlFor="email"
-              className="text-sm font-medium text-slate-700 dark:text-slate-200"
+              className="text-xs font-medium text-slate-700"
             >
               Email
             </label>
@@ -312,17 +285,17 @@ export default function Auth() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label
               htmlFor="password"
-              className="text-sm font-medium text-slate-700 dark:text-slate-200"
+              className="text-xs font-medium text-slate-700"
             >
               Password
             </label>
             <Input
               id="password"
               type="password"
-              placeholder="Choose a strong password"
+              placeholder="Choose a password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -330,12 +303,12 @@ export default function Auth() {
             />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <label
               htmlFor="confirmPassword"
-              className="text-sm font-medium text-slate-700 dark:text-slate-200"
+              className="text-xs font-medium text-slate-700"
             >
-              Confirm Password
+              Confirm password
             </label>
             <Input
               id="confirmPassword"
@@ -349,27 +322,29 @@ export default function Auth() {
           </div>
 
           {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
+            <div className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-center text-xs text-red-600">
+              {error}
+            </div>
           )}
           {success && (
-            <div className="text-green-500 text-sm text-center">
+            <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-center text-xs text-emerald-700">
               {success}
             </div>
           )}
 
           <Button
             type="submit"
-            className="w-full"
+            className="mt-2 w-full rounded-full text-xs font-semibold uppercase tracking-[0.18em]"
             disabled={isLoading}
           >
-            {isLoading ? "Creating account..." : "Sign Up"}
+            {isLoading ? "Creating account..." : "Sign up"}
           </Button>
 
-          <div className="text-sm text-center">
+          <div className="mt-4 text-center text-xs text-slate-600">
             <button
               type="button"
               onClick={() => switchMode("login")}
-              className="text-blue-600 hover:underline"
+              className="hover:underline cursor-pointer"
               disabled={isLoading}
             >
               Already have an account? Login
@@ -380,31 +355,32 @@ export default function Auth() {
     </>
   );
 
-  const renderResetForm = () => {
+  const renderReset = () => {
     if (resetToken) {
       return (
         <>
-          <CardHeader className="space-y-2 text-center">
-            <CardTitle className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
-              Reset Password
+          <CardHeader className="space-y-1 text-center">
+            <CardTitle className="text-lg font-semibold tracking-wide">
+              Reset password
             </CardTitle>
-            <CardDescription className="text-slate-500 dark:text-slate-400">
-              Enter your new password
+            <CardDescription className="text-xs text-slate-500">
+              Enter and confirm your new password
             </CardDescription>
           </CardHeader>
+
           <CardContent>
             <form onSubmit={handleResetPassword} className="space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label
                   htmlFor="password"
-                  className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                  className="text-xs font-medium text-slate-700"
                 >
-                  New Password
+                  New password
                 </label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="Enter new password"
+                  placeholder="New password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -412,48 +388,50 @@ export default function Auth() {
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <label
                   htmlFor="confirmPassword"
-                  className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                  className="text-xs font-medium text-slate-700"
                 >
-                  Confirm Password
+                  Confirm password
                 </label>
                 <Input
                   id="confirmPassword"
                   type="password"
-                  placeholder="Confirm new password"
+                  placeholder="Repeat new password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) =>
+                    setConfirmPassword(e.target.value)
+                  }
                   required
                   disabled={isLoading}
                 />
               </div>
 
               {error && (
-                <div className="text-red-500 text-sm text-center">
+                <div className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-center text-xs text-red-600">
                   {error}
                 </div>
               )}
               {success && (
-                <div className="text-green-500 text-sm text-center">
+                <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-center text-xs text-emerald-700">
                   {success}
                 </div>
               )}
 
               <Button
                 type="submit"
-                className="w-full"
+                className="mt-2 w-full rounded-full text-xs font-semibold uppercase tracking-[0.18em]"
                 disabled={isLoading}
               >
-                {isLoading ? "Resetting..." : "Reset Password"}
+                {isLoading ? "Resetting..." : "Reset password"}
               </Button>
 
-              <div className="text-sm text-center">
+              <div className="mt-4 text-center text-xs text-slate-600">
                 <button
                   type="button"
                   onClick={() => switchMode("login")}
-                  className="text-blue-600 hover:underline"
+                  className="hover:underline cursor-pointer"
                   disabled={isLoading}
                 >
                   Back to login
@@ -467,20 +445,21 @@ export default function Auth() {
 
     return (
       <>
-        <CardHeader className="space-y-2 text-center">
-          <CardTitle className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
-            Reset Password
+        <CardHeader className="space-y-1 text-center">
+          <CardTitle className="text-lg font-semibold tracking-wide">
+            Forgot password
           </CardTitle>
-          <CardDescription className="text-slate-500 dark:text-slate-400">
+          <CardDescription className="text-xs text-slate-500">
             Enter your email to receive a reset link
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           <form onSubmit={handleRequestReset} className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <label
                 htmlFor="email"
-                className="text-sm font-medium text-slate-700 dark:text-slate-200"
+                className="text-xs font-medium text-slate-700"
               >
                 Email
               </label>
@@ -496,27 +475,29 @@ export default function Auth() {
             </div>
 
             {error && (
-              <div className="text-red-500 text-sm text-center">{error}</div>
+              <div className="rounded-full border border-red-200 bg-red-50 px-3 py-1 text-center text-xs text-red-600">
+                {error}
+              </div>
             )}
             {success && (
-              <div className="text-green-500 text-sm text-center">
+              <div className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-center text-xs text-emerald-700">
                 {success}
               </div>
             )}
 
             <Button
               type="submit"
-              className="w-full"
+              className="mt-2 w-full rounded-full text-xs font-semibold uppercase tracking-[0.18em]"
               disabled={isLoading}
             >
-              {isLoading ? "Sending..." : "Send Reset Link"}
+              {isLoading ? "Sending..." : "Send reset link"}
             </Button>
 
-            <div className="text-sm text-center">
+            <div className="mt-4 text-center text-xs text-slate-600">
               <button
                 type="button"
                 onClick={() => switchMode("login")}
-                className="text-blue-600 hover:underline"
+                className="hover:underline cursor-pointer"
                 disabled={isLoading}
               >
                 Back to login
@@ -528,34 +509,41 @@ export default function Auth() {
     );
   };
 
-  const renderForm = () => {
-    if (mode === "login") return renderLoginForm();
-    if (mode === "signup") return renderSignupForm();
-    return renderResetForm();
-  };
+  let content: JSX.Element;
+  if (mode === "login") content = renderLogin();
+  else if (mode === "signup") content = renderSignup();
+  else content = renderReset();
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-gray-50 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-50">
-      <div className="absolute top-4 left-4">
-        <Button
-          asChild
-          variant="outline"
-          size="sm"
-          className="rounded-full px-3 text-xs"
-        >
-          <Link to="/">← Back to Home</Link>
-        </Button>
-      </div>
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+      <header className="border-b bg-white">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-gradient-to-tr from-sky-400 via-indigo-500 to-pink-400" />
+            <span className="text-xs font-semibold uppercase tracking-[0.25em]">
+              nihongo count
+            </span>
+          </div>
 
-      <div className="absolute top-4 right-4">
-        <ThemeToggle />
-      </div>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="rounded-full px-4 text-xs font-semibold tracking-[0.18em] uppercase"
+          >
+            <Link to="/">Back home</Link>
+          </Button>
+        </div>
+      </header>
 
-      <div className="w-full max-w-md px-4">
-        <Card className="border border-slate-200 shadow-sm bg-white dark:border-slate-800 dark:bg-slate-900">
-          {renderForm()}
-        </Card>
-      </div>
+      <main className="flex-1 bg-slate-50">
+        <section className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-6xl items-center justify-center px-4 py-8">
+          <Card className="w-full max-w-md rounded-2xl border border-slate-200 bg-white shadow-lg">
+            {content}
+          </Card>
+        </section>
+      </main>
     </div>
   );
 }
+

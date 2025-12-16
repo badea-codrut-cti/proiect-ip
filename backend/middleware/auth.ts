@@ -10,6 +10,9 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
 });
 
+
+
+
 export const authService = new AuthService(pool);
 
 export interface AuthRequest extends Request {
