@@ -22,7 +22,7 @@ class EmailService {
 
   async sendPasswordResetEmail(email: string, resetToken: string): Promise<any> {
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+    const resetUrl = `${frontendUrl}/login?token=${resetToken}`;
 
     const mailOptions = {
       from: this.from,

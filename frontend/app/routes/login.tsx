@@ -95,7 +95,7 @@ export default function Auth() {
 
     try {
       const response = await fetch(
-        `${apiUrl}/api/auth/request-password-reset`,
+        `${apiUrl}/api/auth/forgot-password`,
         {
           method: "POST",
           headers: {
