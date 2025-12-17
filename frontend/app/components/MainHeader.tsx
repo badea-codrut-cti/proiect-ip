@@ -19,7 +19,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: "home", label: "HOME", to: "/" },
-  { id: "reviews", label: "REVIEWS", to: "/__review" },
+  { id: "reviews", label: "REVIEWS", to: "/reviews" },
   { id: "counters", label: "COUNTERS", to: "/counters" },
   { id: "badges", label: "BADGES", to: "/badges" },
   { id: "leaderboard", label: "LEADERBOARD", to: "/leaderboard" },
