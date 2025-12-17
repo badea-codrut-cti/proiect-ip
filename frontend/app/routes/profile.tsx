@@ -257,6 +257,12 @@ export default function Profile() {
               Reviews
             </Link>
             <Link
+              to="/counters"
+              className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+            >
+              <span>Counters</span>
+            </Link>
+            <Link
               to="/badges"
               className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
             >
