@@ -7,4 +7,7 @@ export default [
   route("counters", "routes/counters.tsx"),
 
   route("counters/:counterId", "routes/counters.$counterId.tsx"),
+
+
+  route("__review", "routes/__review.tsx"),
 ] satisfies RouteConfig;
