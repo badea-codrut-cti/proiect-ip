@@ -3,6 +3,20 @@ import { authService } from "../middleware/auth.js";
 
 const router = express.Router();
 
+router.get("/", async (req, res) => {
+  try {
+    const result = await authService.getPool().query(
+      'SELECT id, name FROM counters ORDER BY name ASC');
+
+    return res.status(200).json({
+      counters: result.rows,
+    });
+  } catch (err) {
+    console.error("Error fetching counters list:", err);
+    return res.status(500).json({ error: "Failed to fetch counters" });
+  }
+});
+
 router.get("/:id", async (req, res) => {
   const counterId = req.params.id;
 
@@ -19,8 +33,8 @@ router.get("/:id", async (req, res) => {
     const counter = counterResult.rows[0];
 
     const pendingEditResult = await authService.getPool().query(
-      'SELECT EXISTS(SELECT 1 FROM counter_edits WHERE counter_id = $1 AND status = $2) as has_pending_edit',
-      [counterId, 'pending']
+      'SELECT EXISTS(SELECT 1 FROM counter_edits WHERE counter_id = $1 AND is_approved = $2) as has_pending_edit',
+      [counterId, false]
     );
 
     const hasPendingEdit = pendingEditResult.rows[0].has_pending_edit;
