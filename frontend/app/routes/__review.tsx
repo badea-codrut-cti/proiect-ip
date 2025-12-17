@@ -50,7 +50,6 @@ export default function ReviewExercise() {
   const exercises = HARDCODED_EXERCISES;
   const exercise = exercises[current];
 
-  /* 🔚 FINAL SCREEN */
   if (!exercise) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 space-y-6">
@@ -84,7 +83,6 @@ export default function ReviewExercise() {
     setMessage("✅ Correct!");
     setXp(20);
 
-    // Badge doar la primul exercițiu
     if (current === 0) {
       setBadge("First exercise");
     }
@@ -101,17 +99,14 @@ export default function ReviewExercise() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* HEADER */}
       <header className="border-b bg-white">
         <div className="mx-auto h-14 max-w-5xl flex items-center px-4 text-xs uppercase tracking-[0.25em] font-semibold">
           nihongo count
         </div>
       </header>
 
-      {/* MAIN */}
       <main className="flex-1 flex items-center justify-center px-4">
         <div className="w-full max-w-3xl space-y-6">
-          {/* TOP BAR */}
           <div className="flex justify-between text-xs text-slate-500">
             <Link to="/" className="hover:text-slate-700">
               ← Back to Dashboard
@@ -119,7 +114,6 @@ export default function ReviewExercise() {
             <span>{current} completed</span>
           </div>
 
-          {/* PROGRESS */}
           <div>
             <div className="text-xs mb-1">
               Question {current + 1} of {exercises.length}
@@ -132,14 +126,11 @@ export default function ReviewExercise() {
             </div>
           </div>
 
-          {/* CARD */}
           <div className="rounded-2xl border bg-white px-8 py-10 text-center shadow-sm">
-            {/* JAPANESE */}
             <div className="text-2xl mb-2 tracking-wide">
               {exercise.sentence}
             </div>
 
-            {/* ENGLISH */}
             <div className="text-sm text-slate-500 mb-6">
               {exercise.translation}
             </div>
@@ -163,7 +154,6 @@ export default function ReviewExercise() {
               </div>
             </form>
 
-            {/* FEEDBACK */}
             {message && (
               <div className="mt-4 text-sm font-semibold">
                 {message}
