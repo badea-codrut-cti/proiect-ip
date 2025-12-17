@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS user_badges (
 CREATE TABLE IF NOT EXISTS exercise_attempts (
   id SERIAL PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  exercise_id UUID NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+  exercise_id TEXT NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
   is_correct BOOLEAN NOT NULL,
   attempts INTEGER NOT NULL CHECK (attempts > 0),
   time_seconds INTEGER NOT NULL CHECK (time_seconds >= 0),
