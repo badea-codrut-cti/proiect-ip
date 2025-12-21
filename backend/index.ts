@@ -6,6 +6,8 @@ import authRoutes from './routes/auth.js';
 import profilesRoutes from './routes/profiles.js';
 import contributorApplicationsRoutes from './routes/contributorApplications.js';
 import exercisesRoutes from './routes/exercises.js';
+import exerciseAttemptsRoutes from "./routes/exerciseAttempts.js";
+
 
 dotenv.config();
 
