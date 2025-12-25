@@ -1,5 +1,5 @@
 import { Pool } from 'pg';
-import dotenv from "dotenv";
+import dotenv from 'dotenv';
 import { Request, Response, NextFunction } from 'express';
 import AuthService from '../services/db.js';
 
@@ -16,37 +16,61 @@ const pool = new Pool({
 export const authService = new AuthService(pool);
 
 export interface AuthRequest extends Request {
-  user?: any;
-  session?: any;
+  user?: {
+    id: string;
+    username: string;
+    email: string;
+    display_name?: string;
+    password_hash: string;
+  };
+  session?: {
+    id: string;
+    user_id: string;
+    active_expires: number;
+    idle_expires: number;
+    created_at: string;
+    username?: string;
+    email?: string;
+    display_name?: string;
+  };
 }
 
-export const sessionMiddleware = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
-  const sessionId = req.cookies?.sessionId || req.headers.authorization?.replace('Bearer ', '');
+export const sessionMiddleware = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const sessionId = req.cookies?.sessionId ?? req.headers.authorization?.replace('Bearer ', '');
 
   if (sessionId) {
     try {
       const session = await authService.validateSession(sessionId);
+
       if (session) {
-        
         req.session = session;
         req.user = {
-        id: session.user_id,
-        username: session.username,
-        email: session.email,
-        };
+          id: session.user_id,
+          username: session.username,
+          email: session.email,
+          display_name: session.display_name,
+          password_hash: session.password_hash
+        } as AuthRequest['user'];
       }
-      next();
     } catch (error) {
-      next();
+      console.error('Session middleware error:', error);
     }
-  } else {
-    next();
   }
+
+  next();
 };
 
-export const adminMiddleware = async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+export const adminMiddleware = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   if (!req.user) {
-    res.status(401).json({ error: "Not authenticated" });
+    res.status(401).json({ error: 'Not authenticated' });
     return;
   }
 
@@ -57,13 +81,13 @@ export const adminMiddleware = async (req: AuthRequest, res: Response, next: Nex
     );
 
     if (result.rows.length === 0 || !result.rows[0].is_admin) {
-      res.status(403).json({ error: "Admin access required" });
+      res.status(403).json({ error: 'Admin access required' });
       return;
     }
 
     next();
   } catch (error) {
     console.error('Admin middleware error:', error);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: 'Server error' });
   }
 };
