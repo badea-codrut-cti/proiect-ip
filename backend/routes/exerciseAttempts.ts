@@ -1,4 +1,5 @@
 import express, { Response } from 'express';
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { counterToKana } from '../counter/index.js';
 import { authService, sessionMiddleware, AuthRequest } from '../middleware/auth.js';
@@ -10,12 +11,17 @@ const requestExerciseSchema = z.object({
 });
 
 const submitExerciseSchema = z.object({
-  attemptId: z.string().min(1),
+  reviewId: z.string().min(1),
   answer: z.string().min(1)
 });
 
 const XP_REWARD_CORRECT = 30;
 const XP_REWARD_INCORRECT = 5;
+const REVIEW_STATE_AGAIN = 0;
+const REVIEW_STATE_GOOD = 2;
+const REVIEW_RATING_PENDING = 2;
+const REVIEW_RATING_CORRECT = 4;
+const REVIEW_RATING_INCORRECT = 1;
 
 function generateRandomNumber(min: number, max: number, decimalPoints: number): number {
   const safeDecimalPoints = Math.max(0, Math.trunc(decimalPoints));
@@ -81,15 +87,24 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
       return res.status(500).json({ error: 'Failed to derive answer for the requested counter' });
     }
 
-    const attemptResult = await pool.query(
-      `INSERT INTO exercise_attempts (user_id, exercise_id, generated_number, answer)
-       VALUES ($1, $2, $3, $4)
-       RETURNING id`,
-      [req.user.id, chosenExercise.id, generatedNumber, kanaAnswer]
+    const reviewId = randomUUID();
+
+    await pool.query(
+      `INSERT INTO reviews (id, user_id, counter_id, exercise_id, generated_number, rating, state)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        reviewId,
+        req.user.id,
+        counterId,
+        chosenExercise.id,
+        generatedNumber,
+        REVIEW_RATING_PENDING,
+        REVIEW_STATE_AGAIN
+      ]
     );
 
     return res.status(201).json({
-      exercise_attempt_id: attemptResult.rows[0].id,
+      review_id: reviewId,
       exercise: {
         id: chosenExercise.id,
         sentence: chosenExercise.sentence,
@@ -114,47 +129,52 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
     return res.status(400).json({ error: parseResult.error.issues[0].message });
   }
 
-  const { attemptId, answer } = parseResult.data;
+  const { reviewId, answer } = parseResult.data;
   const pool = authService.getPool();
 
   try {
-    const attemptResult = await pool.query(
-      `SELECT ea.id, ea.generated_number, ea.completed_at, ea.user_id,
-              e.counter_id, c.name as counter_name
-       FROM exercise_attempts ea
-       JOIN exercises e ON e.id = ea.exercise_id
-       JOIN counters c ON c.id = e.counter_id
-       WHERE ea.id = $1`,
-      [attemptId]
+    const reviewResult = await pool.query(
+      `SELECT r.id, r.generated_number, r.completed_at, r.user_id, r.state,
+              c.name as counter_name
+       FROM reviews r
+       JOIN counters c ON c.id = r.counter_id
+       WHERE r.id = $1`,
+      [reviewId]
     );
 
-    if (attemptResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Exercise attempt not found' });
+    if (reviewResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Review attempt not found' });
     }
 
-    const attempt = attemptResult.rows[0];
+    const review = reviewResult.rows[0];
 
-    if (attempt.user_id !== req.user.id) {
-      return res.status(403).json({ error: 'Attempt does not belong to the authenticated user' });
+    if (review.user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Review does not belong to the authenticated user' });
     }
 
-    if (attempt.completed_at) {
-      return res.status(400).json({ error: 'This exercise attempt has already been completed' });
+    if (review.completed_at) {
+      return res.status(400).json({ error: 'This review has already been completed' });
     }
 
-    const generatedNumber = Number(attempt.generated_number);
-    const expectedAnswer = counterToKana(attempt.counter_name, generatedNumber);
+    const generatedNumber = Number(review.generated_number);
+    const expectedAnswer = counterToKana(review.counter_name, generatedNumber);
     const isCorrect = expectedAnswer === answer;
     const xpAwarded = isCorrect ? XP_REWARD_CORRECT : XP_REWARD_INCORRECT;
+    const newState = isCorrect ? REVIEW_STATE_GOOD : REVIEW_STATE_AGAIN;
+    const newRating = isCorrect ? REVIEW_RATING_CORRECT : REVIEW_RATING_INCORRECT;
 
     await pool.query('BEGIN');
 
     try {
-      await pool.query(
-        `UPDATE exercise_attempts
-         SET completed_at = CURRENT_TIMESTAMP, is_correct = $1, xp_awarded = $2
-         WHERE id = $3`,
-        [isCorrect, xpAwarded, attemptId]
+      const updateResult = await pool.query(
+        `UPDATE reviews
+         SET completed_at = CURRENT_TIMESTAMP,
+             submitted_answer = $1,
+             rating = $2,
+             state = $3
+         WHERE id = $4
+         RETURNING rating`,
+        [answer, newRating, newState, reviewId]
       );
 
       const userResult = await pool.query(
@@ -171,7 +191,9 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
         correct: isCorrect,
         xp_awarded: xpAwarded,
         total_xp: userResult.rows[0].xp,
-        expected_answer: expectedAnswer
+        expected_answer: expectedAnswer,
+        rating: updateResult.rows[0].rating,
+        state: newState
       });
     } catch (transactionError) {
       await pool.query('ROLLBACK').catch(() => {});
