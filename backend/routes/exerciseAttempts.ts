@@ -6,6 +6,7 @@ import { authService, sessionMiddleware, AuthRequest } from '../middleware/auth.
 import { generatorParameters, fsrs, createEmptyCard, Rating } from 'ts-fsrs';
 import type { Card, FSRSParameters } from 'ts-fsrs';
 import { computeParameters, FSRSBindingReview, FSRSBindingItem } from '@open-spaced-repetition/binding';
+import { calculateWeeklyPoints, getCurrentWeekStart } from '../services/leaderboard.js';
 
 const router = express.Router();
 
@@ -251,7 +252,7 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
          SET completed_at = CURRENT_TIMESTAMP,
              submitted_answer = $1,
              rating = $2,
-             state = $3,
+             state = $3
          WHERE id = $4
          RETURNING rating`,
         [answer, rating, newCard.state, reviewId]
@@ -264,6 +265,18 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
          RETURNING xp`,
         [xpAwarded, req.user.id]
       );
+
+      const weeklyPoints = calculateWeeklyPoints(rating);
+      if (weeklyPoints > 0) {
+        const weekStart = getCurrentWeekStart();
+        await pool.query(
+          `INSERT INTO weekly_leaderboard (user_id, week_start, points)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (user_id, week_start)
+           DO UPDATE SET points = weekly_leaderboard.points + $3`,
+          [req.user.id, weekStart, weeklyPoints]
+        );
+      }
 
       await pool.query('COMMIT');
 
