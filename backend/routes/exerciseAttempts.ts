@@ -67,7 +67,7 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
       `SELECT e.id, e.sentence, e.min_count, e.max_count, e.decimal_points, c.name as counter_name
        FROM exercises e
        JOIN counters c ON e.counter_id = c.id
-	   WHERE e.counter_id = $1`,
+	   WHERE e.counter_id = $1 AND e.is_approved = TRUE`,
       [counterId]
     );
 
