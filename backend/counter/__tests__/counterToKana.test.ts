@@ -1,4 +1,4 @@
-import { counterToKana } from '../index';
+import { counterToKana } from '../index.js';
 
 describe('counterToKana - universal function', () => {
   describe('Age counter', () => {

@@ -1,4 +1,4 @@
-import { numberToKana } from './numberToKana';
+import { numberToKana } from './numberToKana.js';
 
 const NON_STANDARD_DATES: Record<string, string> = {
   '1': 'ついたち',
