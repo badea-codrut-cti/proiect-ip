@@ -33,6 +33,21 @@ router.get("/:userId", async (req, res) => {
        ORDER BY pp.cost, pp.name`,
       [userId]
     );
+
+    const reviewStatsResult = await pool.query(
+      `SELECT DATE(completed_at) as date, COUNT(*) as count
+       FROM reviews
+       WHERE user_id = $1 AND completed_at IS NOT NULL
+       GROUP BY DATE(completed_at)
+       ORDER BY date DESC`,
+      [userId]
+    );
+
+    const reviewHistory = reviewStatsResult.rows.reduce((acc: Record<string, number>, row) => {
+      const dateStr = new Date(row.date).toISOString().split('T')[0];
+      acc[dateStr] = parseInt(row.count);
+      return acc;
+    }, {});
     
     return res.status(200).json({
       id: user.id,
@@ -46,7 +61,8 @@ router.get("/:userId", async (req, res) => {
         name: user.current_profile_picture_name,
         description: user.current_profile_picture_description
       } : null,
-      owned_profile_pictures: ownedPicturesResult.rows
+      owned_profile_pictures: ownedPicturesResult.rows,
+      review_history: reviewHistory
     });
   } catch (error) {
     console.error(error);
