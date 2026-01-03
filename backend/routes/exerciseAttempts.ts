@@ -92,7 +92,6 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
 
     try {
       kanaAnswer = counterToKana(chosenExercise.counter_name, generatedNumber);
-	  console.log(chosenExercise.counter_name);
     } catch (error) {
       console.error('Counter to kana conversion failed:', error);
       return res.status(500).json({ error: 'Failed to derive answer for the requested counter' });
