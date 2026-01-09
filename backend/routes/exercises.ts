@@ -17,6 +17,10 @@ const exerciseSchema = z.object({
   path: ["min_count"]
 });
 
+const rejectionSchema = z.object({
+  reason: z.string().min(1, "Rejection reason is required").max(1000, "Reason is too long"),
+});
+
 router.get("/pending", sessionMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const result = await authService.getPool().query(
@@ -97,9 +101,10 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: Auth
     await authService.getPool().query('BEGIN');
 
     const exerciseResult = await authService.getPool().query(
-      `SELECT e.*, u.email as created_by_email, u.username as created_by_username
+      `SELECT e.*, u.email as created_by_email, u.username as created_by_username, c.name as counter_name
        FROM exercises e
        JOIN users u ON e.created_by = u.id
+       JOIN counters c ON e.counter_id = c.id
        WHERE e.id = $1 AND e.status = 'pending'
        FOR UPDATE`,
       [exerciseId]
@@ -119,6 +124,12 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: Auth
       [adminId, exerciseId]
     );
 
+    await authService.getPool().query(
+      `INSERT INTO notifications (user_id, message, type, exercise_id)
+       VALUES ($1, $2, $3, $4)`,
+      [exercise.created_by, `Your exercise proposal for ${exercise.counter_name} has been approved!`, 'exercise_approval', exerciseId]
+    );
+
     await authService.getPool().query('COMMIT');
 
     return res.status(200).json({
@@ -135,15 +146,22 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: Auth
 router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   const exerciseId = req.params.id;
   const adminId = req.user.id;
-  const { reason } = req.body;
+  
+  const validationResult = rejectionSchema.safeParse(req.body);
+  if (!validationResult.success) {
+    return res.status(400).json({ error: validationResult.error.issues[0].message });
+  }
+
+  const { reason } = validationResult.data;
 
   try {
     await authService.getPool().query('BEGIN');
 
     const exerciseResult = await authService.getPool().query(
-      `SELECT e.*, u.email as created_by_email, u.username as created_by_username
+      `SELECT e.*, u.email as created_by_email, u.username as created_by_username, c.name as counter_name
        FROM exercises e
        JOIN users u ON e.created_by = u.id
+       JOIN counters c ON e.counter_id = c.id
        WHERE e.id = $1 AND e.status = 'pending'
        FOR UPDATE`,
       [exerciseId]
@@ -161,6 +179,12 @@ router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req: AuthR
        SET status = 'rejected', approved_by = $1, updated_at = CURRENT_TIMESTAMP
        WHERE id = $2`,
       [adminId, exerciseId]
+    );
+
+    await authService.getPool().query(
+      `INSERT INTO notifications (user_id, message, type, exercise_id)
+       VALUES ($1, $2, $3, $4)`,
+      [exercise.created_by, `Your exercise proposal for ${exercise.counter_name} has been rejected. Reason: ${reason || 'No reason provided'}`, 'exercise_rejection', exerciseId]
     );
 
     await authService.getPool().query('COMMIT');

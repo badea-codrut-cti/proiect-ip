@@ -11,6 +11,10 @@ const counterEditSchema = z.object({
   message: "Content cannot be empty or only whitespace"
 });
 
+const rejectionSchema = z.object({
+  reason: z.string().min(1, "Rejection reason is required").max(1000, "Reason is too long"),
+});
+
 router.get("/pending", sessionMiddleware, adminMiddleware, async (req, res) => {
   try {
     const result = await authService.getPool().query(
@@ -100,9 +104,10 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: Auth
     await authService.getPool().query('BEGIN');
 
     const editResult = await authService.getPool().query(
-      `SELECT ce.*, u.email as created_by_email, u.username as created_by_username
+      `SELECT ce.*, u.email as created_by_email, u.username as created_by_username, c.name as counter_name
        FROM counter_edits ce
        JOIN users u ON ce.created_by = u.id
+       JOIN counters c ON ce.counter_id = c.id
        WHERE ce.id = $1 AND ce.status = 'pending'
        FOR UPDATE`,
       [editId]
@@ -129,6 +134,12 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: Auth
       [edit.content, edit.counter_id]
     );
 
+    await authService.getPool().query(
+      `INSERT INTO notifications (user_id, message, type, counter_edit_id)
+       VALUES ($1, $2, $3, $4)`,
+      [edit.created_by, `Your documentation edit for ${edit.counter_name} has been approved!`, 'counter_edit_approval', editId]
+    );
+
     await authService.getPool().query('COMMIT');
 
     return res.status(200).json({
@@ -145,15 +156,22 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: Auth
 router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req: AuthRequest, res: Response) => {
   const editId = req.params.id;
   const adminId = req.user.id;
-  const { reason } = req.body;
+  
+  const validationResult = rejectionSchema.safeParse(req.body);
+  if (!validationResult.success) {
+    return res.status(400).json({ error: validationResult.error.issues[0].message });
+  }
+
+  const { reason } = validationResult.data;
 
   try {
     await authService.getPool().query('BEGIN');
 
     const editResult = await authService.getPool().query(
-      `SELECT ce.*, u.email as created_by_email, u.username as created_by_username
+      `SELECT ce.*, u.email as created_by_email, u.username as created_by_username, c.name as counter_name
        FROM counter_edits ce
        JOIN users u ON ce.created_by = u.id
+       JOIN counters c ON ce.counter_id = c.id
        WHERE ce.id = $1 AND ce.status = 'pending'
        FOR UPDATE`,
       [editId]
@@ -171,6 +189,12 @@ router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req: AuthR
        SET status = 'rejected', approved_by = $1, updated_at = CURRENT_TIMESTAMP
        WHERE id = $2`,
       [adminId, editId]
+    );
+
+    await authService.getPool().query(
+      `INSERT INTO notifications (user_id, message, type, counter_edit_id)
+       VALUES ($1, $2, $3, $4)`,
+      [edit.created_by, `Your documentation edit for ${edit.counter_name} has been rejected. Reason: ${reason || 'No reason provided'}`, 'counter_edit_rejection', editId]
     );
 
     await authService.getPool().query('COMMIT');
