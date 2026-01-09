@@ -6,10 +6,10 @@ const router = express.Router();
 
 router.get("/:userId", async (req, res) => {
   const { userId } = req.params;
-  
+
   try {
     const pool = authService.getPool();
-    
+
     const userResult = await pool.query(
       `SELECT u.id, u.username, u.email, u.xp, u.gems, u.joined_at, u.current_profile_picture_id,
               pp.name as current_profile_picture_name, pp.description as current_profile_picture_description
@@ -18,13 +18,13 @@ router.get("/:userId", async (req, res) => {
        WHERE u.id = $1`,
       [userId]
     );
-    
+
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     const user = userResult.rows[0];
-    
+
     const ownedPicturesResult = await pool.query(
       `SELECT pp.id, pp.name, pp.description, pp.cost
        FROM profile_pictures pp
@@ -33,7 +33,15 @@ router.get("/:userId", async (req, res) => {
        ORDER BY pp.cost, pp.name`,
       [userId]
     );
-    
+
+    const userBadgesResult = await pool.query(
+      `SELECT b.id
+       FROM badges b
+       JOIN user_badges ub ON b.id = ub.badge_id
+       WHERE ub.user_id = $1`,
+      [userId]
+    );
+
     return res.status(200).json({
       id: user.id,
       username: user.username,
@@ -46,7 +54,8 @@ router.get("/:userId", async (req, res) => {
         name: user.current_profile_picture_name,
         description: user.current_profile_picture_description
       } : null,
-      owned_profile_pictures: ownedPicturesResult.rows
+      owned_profile_pictures: ownedPicturesResult.rows,
+      badges: userBadgesResult.rows.map(row => row.id)
     });
   } catch (error) {
     console.error(error);
@@ -185,6 +194,23 @@ router.post("/set-profile-picture", sessionMiddleware, async (req: AuthRequest, 
     );
     
     return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/badges/all", async (req, res) => {
+  try {
+    const pool = authService.getPool();
+
+    const badgesResult = await pool.query(
+      `SELECT id, code, name, description
+       FROM badges
+       ORDER BY id`
+    );
+
+    return res.status(200).json(badgesResult.rows);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Server error" });
