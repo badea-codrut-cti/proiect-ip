@@ -1,4 +1,4 @@
-import { numberToKana, normalizeNumberInput, getLastDigitOfInteger } from '../numberToKana';
+import { numberToKana, normalizeNumberInput, getLastDigitOfInteger } from '../numberToKana.js';
 
 describe('numberToKana', () => {
   describe('Basic numbers (0-9)', () => {

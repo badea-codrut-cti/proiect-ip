@@ -1,4 +1,4 @@
-import { numberToKana } from './numberToKana';
+import { numberToKana } from './numberToKana.js';
 
 export function ageCounterToKana(number: number | string): string {
   const numericString = typeof number === 'number' ? number.toString() : number;

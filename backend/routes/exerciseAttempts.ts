@@ -3,6 +3,9 @@ import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { counterToKana } from '../counter/index.js';
 import { authService, sessionMiddleware, AuthRequest } from '../middleware/auth.js';
+import { generatorParameters, fsrs, createEmptyCard, Rating } from 'ts-fsrs';
+import type { Card, FSRSParameters } from 'ts-fsrs';
+import { computeParameters, FSRSBindingReview, FSRSBindingItem } from '@open-spaced-repetition/binding';
 
 const router = express.Router();
 
@@ -17,11 +20,8 @@ const submitExerciseSchema = z.object({
 
 const XP_REWARD_CORRECT = 30;
 const XP_REWARD_INCORRECT = 5;
-const REVIEW_STATE_AGAIN = 0;
-const REVIEW_STATE_GOOD = 2;
-const REVIEW_RATING_PENDING = 2;
-const REVIEW_RATING_CORRECT = 4;
-const REVIEW_RATING_INCORRECT = 1;
+const FAST_RESPONSE_TIME = 5000;
+const DECENT_RESPONSE_TIME = 10000;
 
 function generateRandomNumber(min: number, max: number, decimalPoints: number): number {
   const safeDecimalPoints = Math.max(0, Math.trunc(decimalPoints));
@@ -37,6 +37,16 @@ function generateRandomNumber(min: number, max: number, decimalPoints: number): 
   const clamped = Math.min(Math.max(rounded, min), max);
 
   return Number(clamped.toFixed(safeDecimalPoints));
+}
+
+function initFsrs(userParams: number[] | null, desiredRetention: number = 0.9) {
+	const fsrsParams: FSRSParameters = generatorParameters({
+		enable_fuzz: true,
+		request_retention: desiredRetention,
+		w: userParams || undefined
+	});
+
+	return fsrs(fsrsParams);
 }
 
 router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Response) => {
@@ -57,11 +67,11 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
       `SELECT e.id, e.sentence, e.min_count, e.max_count, e.decimal_points, c.name as counter_name
        FROM exercises e
        JOIN counters c ON e.counter_id = c.id
-       WHERE e.counter_id = $1 AND e.is_approved = TRUE`,
+	   WHERE e.counter_id = $1 AND e.is_approved = TRUE`,
       [counterId]
     );
 
-    if (exercisesResult.rows.length === 0) {
+    if (exercisesResult.rowCount === 0) {
       return res.status(404).json({ error: 'No approved exercises available for this counter' });
     }
 
@@ -90,16 +100,14 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
     const reviewId = randomUUID();
 
     await pool.query(
-      `INSERT INTO reviews (id, user_id, counter_id, exercise_id, generated_number, rating, state)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      `INSERT INTO reviews (id, user_id, counter_id, exercise_id, generated_number)
+       VALUES ($1, $2, $3, $4, $5)`,
       [
         reviewId,
         req.user.id,
         counterId,
         chosenExercise.id,
-        generatedNumber,
-        REVIEW_RATING_PENDING,
-        REVIEW_STATE_AGAIN
+        generatedNumber
       ]
     );
 
@@ -119,6 +127,44 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
   }
 });
 
+router.post('/recalculate', sessionMiddleware, async(req: AuthRequest, res: Response) => {
+	if (!req.user) {
+		return res.status(401).json({ error: 'Not authenticated' });
+	}
+
+	const pool = authService.getPool();
+
+	try {
+		const reviewRows = await pool.query(`
+			SELECT rating, counter_id
+			FROM reviews
+			WHERE user_id = $1
+		`, [req.user.id]);
+
+		const reviews = reviewRows.rows;
+
+		
+		const groupedReviews = Object.values(reviews.reduce((acc, el) => {
+			(acc[el.counter_id] ??= []).push(new FSRSBindingReview(el.rating, acc[el.counter_id].length + 1));
+			return acc;
+		}, {}));
+
+		const newParams = await computeParameters(groupedReviews.map(el => new FSRSBindingItem(el)));
+
+		await pool.query(`
+			UPDATE users
+			SET fsrs_params = $1
+			WHERE id = $2
+		`, [newParams, req.user.id]);
+
+		res.status(200).end();
+	} catch(e) {
+		console.error(e);
+		res.status(500).end();
+	}
+
+});
+
 router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
@@ -133,14 +179,22 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
   const pool = authService.getPool();
 
   try {
-    const reviewResult = await pool.query(
-      `SELECT r.id, r.generated_number, r.completed_at, r.user_id, r.state,
-              c.name as counter_name
-       FROM reviews r
-       JOIN counters c ON c.id = r.counter_id
-       WHERE r.id = $1`,
+    
+	const reviewResult = await pool.query(
+      `SELECT rs.id, rs.generated_number, rs.completed_at, rs.user_id,
+              e.counter_id, c.name as counter_name,
+              u.fsrs_params, u.desired_retention,
+              cs.stability, cs.difficulty, cs.elapsed_days, cs.scheduled_days, 
+              cs.reps, cs.lapses, cs.state, cs.due, cs.last_review, rs.created_at
+       FROM reviews rs
+       JOIN exercises e ON e.id = rs.exercise_id
+       JOIN counters c ON c.id = e.counter_id
+       JOIN users u ON u.id = rs.user_id
+       LEFT JOIN card_state cs ON cs.user_id = rs.user_id AND cs.counter_id = e.counter_id
+       WHERE rs.id = $1`,
       [reviewId]
     );
+
 
     if (reviewResult.rows.length === 0) {
       return res.status(404).json({ error: 'Review attempt not found' });
@@ -160,8 +214,34 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
     const expectedAnswer = counterToKana(review.counter_name, generatedNumber);
     const isCorrect = expectedAnswer === answer;
     const xpAwarded = isCorrect ? XP_REWARD_CORRECT : XP_REWARD_INCORRECT;
-    const newState = isCorrect ? REVIEW_STATE_GOOD : REVIEW_STATE_AGAIN;
-    const newRating = isCorrect ? REVIEW_RATING_CORRECT : REVIEW_RATING_INCORRECT;
+	const fsrsInstance = initFsrs(review.fsrs_params, review.desired_retention);
+	const now = new Date();
+	let card : Card;
+
+	if (review.stability !== null) {
+      card = {
+        due: new Date(review.due),
+        stability: review.stability,
+        difficulty: review.difficulty,
+        elapsed_days: review.elapsed_days,
+        scheduled_days: review.scheduled_days,
+        reps: review.reps,
+        lapses: review.lapses,
+        state: review.state,
+        last_review: review.last_review ? new Date(review.last_review) : undefined,
+		learning_steps: 0
+      };
+    } else {
+      card = createEmptyCard(now);
+    }
+
+	const timeDiff = now.getTime() - new Date(review.created_at).getTime();
+
+	const rating = isCorrect ? timeDiff < FAST_RESPONSE_TIME ? Rating.Easy : timeDiff < DECENT_RESPONSE_TIME ? Rating.Good : Rating.Hard : Rating.Again;
+	const schedulingCards = fsrsInstance.repeat(card, now);
+    const result = schedulingCards[rating];
+    const newCard = result.card;
+
 
     await pool.query('BEGIN');
 
@@ -171,10 +251,10 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
          SET completed_at = CURRENT_TIMESTAMP,
              submitted_answer = $1,
              rating = $2,
-             state = $3
+             state = $3,
          WHERE id = $4
          RETURNING rating`,
-        [answer, newRating, newState, reviewId]
+        [answer, rating, newCard.state, reviewId]
       );
 
       const userResult = await pool.query(
@@ -193,7 +273,7 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
         total_xp: userResult.rows[0].xp,
         expected_answer: expectedAnswer,
         rating: updateResult.rows[0].rating,
-        state: newState
+        state: newCard.state
       });
     } catch (transactionError) {
       await pool.query('ROLLBACK').catch(() => {});
