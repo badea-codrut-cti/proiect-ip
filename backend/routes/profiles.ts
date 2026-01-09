@@ -34,14 +34,21 @@ router.get("/:userId", async (req, res) => {
       [userId]
     );
 
-    const userBadgesResult = await pool.query(
-      `SELECT b.id
-       FROM badges b
-       JOIN user_badges ub ON b.id = ub.badge_id
-       WHERE ub.user_id = $1`,
+    const reviewStatsResult = await pool.query(
+      `SELECT DATE(completed_at) as date, COUNT(*) as count
+       FROM reviews
+       WHERE user_id = $1 AND completed_at IS NOT NULL
+       GROUP BY DATE(completed_at)
+       ORDER BY date DESC`,
       [userId]
     );
 
+    const reviewHistory = reviewStatsResult.rows.reduce((acc: Record<string, number>, row) => {
+      const dateStr = new Date(row.date).toISOString().split('T')[0];
+      acc[dateStr] = parseInt(row.count);
+      return acc;
+    }, {});
+    
     return res.status(200).json({
       id: user.id,
       username: user.username,
@@ -55,7 +62,7 @@ router.get("/:userId", async (req, res) => {
         description: user.current_profile_picture_description
       } : null,
       owned_profile_pictures: ownedPicturesResult.rows,
-      badges: userBadgesResult.rows.map(row => row.id)
+      review_history: reviewHistory
     });
   } catch (error) {
     console.error(error);

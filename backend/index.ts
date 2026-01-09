@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.js';
 import profilesRoutes from './routes/profiles.js';
 import contributorApplicationsRoutes from './routes/contributorApplications.js';
+import reviewsRoutes from './routes/reviews.js';
 import exercisesRoutes from './routes/exercises.js';
 import exerciseAttemptRoutes from './routes/exerciseAttempts.js';
 import counterRoutes from './routes/counters.js';
@@ -32,6 +33,7 @@ app.get('/api/test', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/profiles', profilesRoutes);
+app.use('/api/reviews', reviewsRoutes);
 app.use('/api/contributor-applications', contributorApplicationsRoutes);
 app.use('/api/exercises', exercisesRoutes);
 app.use('/api/exercise-attempts', exerciseAttemptRoutes);
