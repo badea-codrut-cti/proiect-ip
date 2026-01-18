@@ -1,4 +1,4 @@
-import { numberToKana } from './numberToKana';
+import { numberToKana } from './numberToKana.js';
 
 export const digitEndingCounters = {
   "本": {

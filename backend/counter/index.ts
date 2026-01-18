@@ -1,6 +1,6 @@
-import { ageCounterToKana } from './ageCounter';
-import { dateCounterToKana } from './dateCounter';
-import { digitEndingCounterToKana, digitEndingCounters } from './digitEndingCounter';
+import { ageCounterToKana } from './ageCounter.js';
+import { dateCounterToKana } from './dateCounter.js';
+import { digitEndingCounterToKana, digitEndingCounters } from './digitEndingCounter.js';
 
 const COUNTERS: Record<string, (counter: string, number: number | string) => string> = {
   '歳': (_, number) => ageCounterToKana(number),

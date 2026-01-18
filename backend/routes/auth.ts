@@ -183,4 +183,8 @@ router.post("/reset-password", async (req: AuthRequest, res: Response): Promise<
   }
 });
 
+import profileUpdateRoutes from './profileUpdate.js';
+
+router.use('/profile', profileUpdateRoutes);
+
 export default router;

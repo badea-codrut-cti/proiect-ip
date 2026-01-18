@@ -6,10 +6,10 @@ const router = express.Router();
 
 router.get("/:userId", async (req, res) => {
   const { userId } = req.params;
-  
+
   try {
     const pool = authService.getPool();
-    
+
     const userResult = await pool.query(
       `SELECT u.id, u.username, u.email, u.xp, u.gems, u.joined_at, u.current_profile_picture_id,
               pp.name as current_profile_picture_name, pp.description as current_profile_picture_description
@@ -18,13 +18,13 @@ router.get("/:userId", async (req, res) => {
        WHERE u.id = $1`,
       [userId]
     );
-    
+
     if (userResult.rows.length === 0) {
       return res.status(404).json({ error: "User not found" });
     }
-    
+
     const user = userResult.rows[0];
-    
+
     const ownedPicturesResult = await pool.query(
       `SELECT pp.id, pp.name, pp.description, pp.cost
        FROM profile_pictures pp
@@ -33,6 +33,21 @@ router.get("/:userId", async (req, res) => {
        ORDER BY pp.cost, pp.name`,
       [userId]
     );
+
+    const reviewStatsResult = await pool.query(
+      `SELECT DATE(completed_at) as date, COUNT(*) as count
+       FROM reviews
+       WHERE user_id = $1 AND completed_at IS NOT NULL
+       GROUP BY DATE(completed_at)
+       ORDER BY date DESC`,
+      [userId]
+    );
+
+    const reviewHistory = reviewStatsResult.rows.reduce((acc: Record<string, number>, row) => {
+      const dateStr = new Date(row.date).toISOString().split('T')[0];
+      acc[dateStr] = parseInt(row.count);
+      return acc;
+    }, {});
     
     return res.status(200).json({
       id: user.id,
@@ -46,7 +61,8 @@ router.get("/:userId", async (req, res) => {
         name: user.current_profile_picture_name,
         description: user.current_profile_picture_description
       } : null,
-      owned_profile_pictures: ownedPicturesResult.rows
+      owned_profile_pictures: ownedPicturesResult.rows,
+      review_history: reviewHistory
     });
   } catch (error) {
     console.error(error);
@@ -185,6 +201,23 @@ router.post("/set-profile-picture", sessionMiddleware, async (req: AuthRequest, 
     );
     
     return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get("/badges/all", async (req, res) => {
+  try {
+    const pool = authService.getPool();
+
+    const badgesResult = await pool.query(
+      `SELECT id, code, name, description
+       FROM badges
+       ORDER BY id`
+    );
+
+    return res.status(200).json(badgesResult.rows);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: "Server error" });

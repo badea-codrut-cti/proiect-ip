@@ -7,6 +7,7 @@ interface User {
   id: string;
   username: string;
   email: string;
+  display_name?: string;
   password_hash: string;
   password_salt?: string;
   password_reset_token?: string | null;
@@ -22,6 +23,7 @@ interface Session {
   created_at: string;
   username?: string;
   email?: string;
+  display_name?: string;
 }
 
 interface PasswordHashResult {
@@ -77,8 +79,8 @@ class AuthService {
     const userId = uuidv4();
 
     const result = await this.pool.query(
-      'INSERT INTO users (id, username, email, password_hash, password_salt) VALUES ($1, $2, $3, $4, $5) RETURNING id, username, email, joined_at',
-      [userId, username, email, hashedPassword, salt]
+      'INSERT INTO users (id, username, email, password_hash, password_salt, display_name) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, email, joined_at, display_name',
+      [userId, username, email, hashedPassword, salt, username]
     );
 
     return result.rows[0];
@@ -123,7 +125,7 @@ class AuthService {
   async validateSession(sessionId: string): Promise<Session | null> {
     const result = await this.pool.query(
       `SELECT s.id, s.user_id, s.active_expires, s.idle_expires, s.created_at,
-              u.username, u.email
+              u.username, u.email, u.display_name
        FROM user_session s
        JOIN users u ON s.user_id = u.id
        WHERE s.id = $1 AND s.active_expires > $2`,
