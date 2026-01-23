@@ -2,6 +2,7 @@ ALTER TABLE reviews
     ADD COLUMN exercise_id TEXT REFERENCES exercises(id) ON DELETE CASCADE,
     ADD COLUMN generated_number DOUBLE PRECISION,
     ADD COLUMN created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ADD COLUMN completed_at TIMESTAMP,
     ADD COLUMN submitted_answer TEXT;
 
 ALTER TABLE reviews

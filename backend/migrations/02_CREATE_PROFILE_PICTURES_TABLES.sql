@@ -1,5 +1,5 @@
 CREATE TABLE profile_pictures (
-    id SERIAL PRIMARY KEY,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT,
     cost INTEGER NOT NULL DEFAULT 0,
@@ -8,12 +8,12 @@ CREATE TABLE profile_pictures (
 
 CREATE TABLE user_profile_pictures (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    profile_picture_id INTEGER NOT NULL REFERENCES profile_pictures(id) ON DELETE CASCADE,
+    profile_picture_id TEXT NOT NULL REFERENCES profile_pictures(id) ON DELETE CASCADE,
     acquired_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, profile_picture_id)
 );
 
-ALTER TABLE users ADD COLUMN current_profile_picture_id INTEGER REFERENCES profile_pictures(id);
+ALTER TABLE users ADD COLUMN current_profile_picture_id TEXT REFERENCES profile_pictures(id);
 ALTER TABLE users ADD COLUMN gems INTEGER DEFAULT 0 NOT NULL;
 
 CREATE INDEX idx_user_profile_pictures_user ON user_profile_pictures(user_id);
