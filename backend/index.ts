@@ -12,6 +12,7 @@ import exerciseAttemptRoutes from './routes/exerciseAttempts.js';
 import counterRoutes from './routes/counters.js';
 import counterEditsRoutes from './routes/counterEdits.js';
 import notificationsRoutes from './routes/notifications.js';
+import { initCronJobs } from './services/cron.js';
 
 dotenv.config();
 
@@ -44,6 +45,10 @@ app.use('/api/exercise-attempts', exerciseAttemptRoutes);
 app.use('/api/counters', counterRoutes);
 app.use('/api/counter-edits', counterEditsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+
+initCronJobs().catch(err => {
+  console.error('[CRON] Failed to initialize cron jobs:', err);
+});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);

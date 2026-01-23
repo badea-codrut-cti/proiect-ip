@@ -7,6 +7,7 @@ import { generatorParameters, fsrs, createEmptyCard, Rating } from 'ts-fsrs';
 import type { Card, FSRSParameters } from 'ts-fsrs';
 import { computeParameters, FSRSBindingReview, FSRSBindingItem } from '@open-spaced-repetition/binding';
 import { calculateWeeklyPoints, getCurrentWeekStart } from '../services/leaderboard.js';
+import { checkBadgesOnReview } from '../services/badges.js';
 
 const router = express.Router();
 
@@ -41,13 +42,13 @@ function generateRandomNumber(min: number, max: number, decimalPoints: number): 
 }
 
 function initFsrs(userParams: number[] | null, desiredRetention: number = 0.9) {
-	const fsrsParams: FSRSParameters = generatorParameters({
-		enable_fuzz: true,
-		request_retention: desiredRetention,
-		w: userParams || undefined
-	});
+  const fsrsParams: FSRSParameters = generatorParameters({
+    enable_fuzz: true,
+    request_retention: desiredRetention,
+    w: userParams || undefined
+  });
 
-	return fsrs(fsrsParams);
+  return fsrs(fsrsParams);
 }
 
 router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Response) => {
@@ -128,41 +129,41 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
   }
 });
 
-router.post('/recalculate', sessionMiddleware, async(req: AuthRequest, res: Response) => {
-	if (!req.user) {
-		return res.status(401).json({ error: 'Not authenticated' });
-	}
+router.post('/recalculate', sessionMiddleware, async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
 
-	const pool = authService.getPool();
+  const pool = authService.getPool();
 
-	try {
-		const reviewRows = await pool.query(`
+  try {
+    const reviewRows = await pool.query(`
 			SELECT rating, counter_id
 			FROM reviews
 			WHERE user_id = $1
 		`, [req.user.id]);
 
-		const reviews = reviewRows.rows;
+    const reviews = reviewRows.rows;
 
-		
-		const groupedReviews = Object.values(reviews.reduce((acc, el) => {
-			(acc[el.counter_id] ??= []).push(new FSRSBindingReview(el.rating, acc[el.counter_id].length + 1));
-			return acc;
-		}, {}));
 
-		const newParams = await computeParameters(groupedReviews.map(el => new FSRSBindingItem(el)));
+    const groupedReviews = Object.values(reviews.reduce((acc: Record<string, FSRSBindingReview[]>, el) => {
+      (acc[el.counter_id] ??= []).push(new FSRSBindingReview(el.rating, acc[el.counter_id].length + 1));
+      return acc;
+    }, {} as Record<string, FSRSBindingReview[]>));
 
-		await pool.query(`
+    const newParams = await computeParameters(groupedReviews.map(el => new FSRSBindingItem(el)));
+
+    await pool.query(`
 			UPDATE users
 			SET fsrs_params = $1
 			WHERE id = $2
 		`, [newParams, req.user.id]);
 
-		res.status(200).end();
-	} catch(e) {
-		console.error(e);
-		res.status(500).end();
-	}
+    res.status(200).end();
+  } catch (e) {
+    console.error(e);
+    res.status(500).end();
+  }
 
 });
 
@@ -180,8 +181,8 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
   const pool = authService.getPool();
 
   try {
-    
-	const reviewResult = await pool.query(
+
+    const reviewResult = await pool.query(
       `SELECT rs.id, rs.generated_number, rs.completed_at, rs.user_id,
               e.counter_id, c.name as counter_name,
               u.fsrs_params, u.desired_retention,
@@ -215,11 +216,11 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
     const expectedAnswer = counterToKana(review.counter_name, generatedNumber);
     const isCorrect = expectedAnswer === answer;
     const xpAwarded = isCorrect ? XP_REWARD_CORRECT : XP_REWARD_INCORRECT;
-	const fsrsInstance = initFsrs(review.fsrs_params, review.desired_retention);
-	const now = new Date();
-	let card : Card;
+    const fsrsInstance = initFsrs(review.fsrs_params, review.desired_retention);
+    const now = new Date();
+    let card: Card;
 
-	if (review.stability !== null) {
+    if (review.stability !== null) {
       card = {
         due: new Date(review.due),
         stability: review.stability,
@@ -230,16 +231,16 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
         lapses: review.lapses,
         state: review.state,
         last_review: review.last_review ? new Date(review.last_review) : undefined,
-		learning_steps: 0
+        learning_steps: 0
       };
     } else {
       card = createEmptyCard(now);
     }
 
-	const timeDiff = now.getTime() - new Date(review.created_at).getTime();
+    const timeDiff = now.getTime() - new Date(review.created_at).getTime();
 
-	const rating = isCorrect ? timeDiff < FAST_RESPONSE_TIME ? Rating.Easy : timeDiff < DECENT_RESPONSE_TIME ? Rating.Good : Rating.Hard : Rating.Again;
-	const schedulingCards = fsrsInstance.repeat(card, now);
+    const rating = isCorrect ? timeDiff < FAST_RESPONSE_TIME ? Rating.Easy : timeDiff < DECENT_RESPONSE_TIME ? Rating.Good : Rating.Hard : Rating.Again;
+    const schedulingCards = fsrsInstance.repeat(card, now);
     const result = schedulingCards[rating];
     const newCard = result.card;
 
@@ -280,6 +281,10 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
 
       await pool.query('COMMIT');
 
+      checkBadgesOnReview(pool, req.user.id, rating, isCorrect).catch(err => {
+        console.error('Error checking badges:', err);
+      });
+
       return res.status(200).json({
         correct: isCorrect,
         xp_awarded: xpAwarded,
@@ -289,7 +294,7 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
         state: newCard.state
       });
     } catch (transactionError) {
-      await pool.query('ROLLBACK').catch(() => {});
+      await pool.query('ROLLBACK').catch(() => { });
       throw transactionError;
     }
   } catch (error) {
