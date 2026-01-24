@@ -1,34 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Input } from "~/components/ui/input";
 import { Link, useNavigate } from "react-router";
+import * as wanakana from "wanakana";
+import { apiFetch } from "~/utils/api";
 
-type Exercise = {
-  id: string;
-  sentence: string;
-  translation: string;
-  answer: string;
+type ExerciseData = {
+  review_id: string;
+  exercise: {
+    id: string;
+    sentence: string;
+    counter_id: string;
+    decimal_points: number;
+  };
+  generated_number: number;
 };
-
-const HARDCODED_EXERCISES: Exercise[] = [
-  {
-    id: "1",
-    sentence: "ペンを _____ ください。",
-    translation: "Please give me three pens.",
-    answer: "さんぼん",
-  },
-  {
-    id: "2",
-    sentence: "本を _____ ください。",
-    translation: "Please give me two books.",
-    answer: "にさつ",
-  },
-  {
-    id: "3",
-    sentence: "ノートを _____ 買いました。",
-    translation: "I bought four notebooks.",
-    answer: "よんさつ",
-  },
-];
 
 function normalizeJapanese(input: string) {
   return input
@@ -41,22 +26,117 @@ function normalizeJapanese(input: string) {
 export default function ReviewExercise() {
   const navigate = useNavigate();
 
-  const [current, setCurrent] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [dueCounterIds, setDueCounterIds] = useState<string[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentReview, setCurrentReview] = useState<ExerciseData | null>(null);
   const [answer, setAnswer] = useState("");
   const [message, setMessage] = useState<string | null>(null);
-  const [badge, setBadge] = useState<string | null>(null);
-  const [xp, setXp] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<{ xp: number; correct: boolean } | null>(null);
 
-  const exercises = HARDCODED_EXERCISES;
-  const exercise = exercises[current];
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  if (!exercise) {
+  // 1. Fetch pending counters on mount
+  useEffect(() => {
+    async function fetchPending() {
+      try {
+        const data = await apiFetch<{ due_counters: string[] }>("/api/exercise-attempts/pending");
+        setDueCounterIds(data.due_counters || []);
+        setLoading(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error");
+        setLoading(false);
+      }
+    }
+    fetchPending();
+  }, []);
+
+  // 2. Fetch exercise when index changes
+  useEffect(() => {
+    if (loading || dueCounterIds.length === 0 || currentIndex >= dueCounterIds.length) return;
+
+    async function fetchExercise() {
+      try {
+        const data = await apiFetch<ExerciseData>("/api/exercise-attempts/request", {
+          method: "POST",
+          body: JSON.stringify({ counterId: dueCounterIds[currentIndex] }),
+        });
+        setCurrentReview(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load exercise");
+      }
+    }
+    fetchExercise();
+  }, [loading, dueCounterIds, currentIndex]);
+
+  const totalReviews = dueCounterIds.length;
+  const progress = totalReviews > 0 ? Math.round((currentIndex / totalReviews) * 100) : 0;
+
+  async function handleSubmit() {
+    if (!answer.trim() || !currentReview) return;
+
+    try {
+      const result = await apiFetch<{ xp_awarded: number; correct: boolean; expected_answer: string }>("/api/exercise-attempts/submit", {
+        method: "POST",
+        body: JSON.stringify({
+          reviewId: currentReview.review_id,
+          answer: answer.trim(),
+        }),
+      });
+
+      setStats({ xp: result.xp_awarded, correct: result.correct });
+
+      if (result.correct) {
+        setMessage("✅ Correct!");
+      } else {
+        setMessage(`❌ Wrong. Correct: ${result.expected_answer}`);
+      }
+
+      setAnswer("");
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
+
+      setTimeout(() => {
+        setMessage(null);
+        setStats(null);
+        setCurrentReview(null);
+        setCurrentIndex((prev) => prev + 1);
+      }, 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Submission failed");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-pulse text-slate-500">Loading reviews...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 space-y-4">
+        <div className="text-red-500 font-semibold">{error}</div>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-slate-900 text-white rounded-md"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (totalReviews === 0 || currentIndex >= totalReviews) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 space-y-6">
         <div className="text-2xl font-semibold text-slate-700">
-          🎉 Review completed!
+          {totalReviews === 0 ? "No reviews due right now! ✨" : "🎉 Review session completed!"}
         </div>
-
         <button
           onClick={() => navigate("/")}
           className="px-6 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-700 transition"
@@ -67,35 +147,17 @@ export default function ReviewExercise() {
     );
   }
 
-  const progress = Math.round(((current + 1) / exercises.length) * 100);
-
-  function handleSubmit() {
-    if (!answer.trim()) return;
-
-    const userAnswer = normalizeJapanese(answer);
-    const expected = normalizeJapanese(exercise.answer);
-
-    if (userAnswer !== expected) {
-      setMessage("❌ Wrong answer");
-      return;
-    }
-
-    setMessage("✅ Correct!");
-    setXp(20);
-
-    if (current === 0) {
-      setBadge("First exercise");
-    }
-
-    setAnswer("");
-
-    setTimeout(() => {
-      setMessage(null);
-      setXp(null);
-      setBadge(null);
-      setCurrent((c) => c + 1);
-    }, 1500);
+  if (!currentReview) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-pulse text-slate-500">Preparing next exercise...</div>
+      </div>
+    );
   }
+
+  const sentenceWithBlank = currentReview.exercise.sentence.replace("<ans>", "_______");
+
+  // Removed wanakana.bind effect to simplify input handling and fix conflicts
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -111,28 +173,29 @@ export default function ReviewExercise() {
             <Link to="/" className="hover:text-slate-700">
               ← Back to Dashboard
             </Link>
-            <span>{current} completed</span>
+            <span>{currentIndex} completed</span>
           </div>
 
           <div>
-            <div className="text-xs mb-1">
-              Question {current + 1} of {exercises.length}
+            <div className="text-xs mb-1 text-slate-500">
+              Review {currentIndex + 1} of {totalReviews}
             </div>
             <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
               <div
-                className="h-full bg-slate-900 transition-all"
+                className="h-full bg-slate-900 transition-all duration-500"
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
 
-          <div className="rounded-2xl border bg-white px-8 py-10 text-center shadow-sm">
-            <div className="text-2xl mb-2 tracking-wide">
-              {exercise.sentence}
-            </div>
-
-            <div className="text-sm text-slate-500 mb-6">
-              {exercise.translation}
+          <div className="rounded-2xl border bg-white px-8 py-12 text-center shadow-sm">
+            <div className="mb-8 space-y-4">
+              <div className="text-4xl font-medium tracking-wide text-slate-800">
+                {sentenceWithBlank}
+              </div>
+              <div className="text-sm text-slate-400">
+                How do you say <span className="font-bold text-slate-600">{currentReview.generated_number}</span> using the correct counter?
+              </div>
             </div>
 
             <form
@@ -140,35 +203,29 @@ export default function ReviewExercise() {
                 e.preventDefault();
                 handleSubmit();
               }}
-              className="space-y-3"
+              className="max-w-xs mx-auto space-y-4"
             >
               <Input
                 autoFocus
-                placeholder="Type answer..."
+                placeholder="Type in Romaji (e.g. 'sanbon')..."
                 value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
-                className="text-center"
+                onChange={(e) => setAnswer(wanakana.toKana(e.target.value, { IMEMode: true }))}
+                className="text-center text-xl h-12 text-slate-900 bg-white border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700"
+                disabled={!!message}
               />
-              <div className="text-xs text-slate-400">
+              <div className="text-[0.65rem] uppercase tracking-wider text-slate-400 font-semibold">
                 Press Enter to submit
               </div>
             </form>
 
             {message && (
-              <div className="mt-4 text-sm font-semibold">
+              <div className={`mt-6 text-sm font-bold ${stats?.correct ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {message}
-              </div>
-            )}
-
-            {badge && (
-              <div className="mt-2 text-green-600 text-sm">
-                🏆 You unlocked a badge: {badge}
-              </div>
-            )}
-
-            {xp && (
-              <div className="mt-1 text-blue-600 text-sm">
-                ⭐ +{xp} XP
+                {stats && (
+                  <div className="mt-1 text-xs opacity-80">
+                    ⭐ +{stats.xp} XP
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -1,4 +1,4 @@
-import { Link, Navigate, useLoaderData } from "react-router";
+import { Link, Navigate, useLoaderData, useNavigate } from "react-router";
 import { useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -11,6 +11,7 @@ import {
   CardDescription,
   CardContent,
 } from "~/components/ui/card";
+import { apiFetch } from "~/utils/api";
 
 import {
   ChevronRight,
@@ -63,9 +64,7 @@ export async function loader({ params }: { params: { counterId?: string } }) {
 
   const browserBase =
     import.meta.env.VITE_API_URL || "http://localhost:5000";
-  const serverBase = "http://backend:5000";
-  const apiUrl =
-    typeof window === "undefined" ? serverBase : browserBase;
+  const apiUrl = browserBase;
 
   const [detailRes, listRes] = await Promise.all([
     fetch(`${apiUrl}/api/counters/${encodeURIComponent(counterId)}`, {
@@ -186,6 +185,24 @@ export default function CounterDetailPage() {
         "masteredCounters",
         JSON.stringify(arr)
       );
+    }
+  };
+
+  const navigate = useNavigate();
+  const [learningLoading, setLearningLoading] = useState(false);
+
+  const handleStartLearning = async () => {
+    setLearningLoading(true);
+    try {
+      await apiFetch("/api/exercise-attempts/request", {
+        method: "POST",
+        body: JSON.stringify({ counterId: counter.id }),
+      });
+      navigate("/reviews");
+    } catch (err) {
+      console.error("Failed to start learning:", err);
+    } finally {
+      setLearningLoading(false);
     }
   };
 
@@ -331,7 +348,17 @@ export default function CounterDetailPage() {
               <CardContent className="space-y-3">
                 <Button
                   className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
-                  variant={mastered ? "outline" : "default"}
+                  variant="default"
+                  type="button"
+                  disabled={learningLoading}
+                  onClick={handleStartLearning}
+                >
+                  {learningLoading ? "Starting..." : "Start Learning"}
+                </Button>
+
+                <Button
+                  className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
+                  variant={mastered ? "outline" : "secondary"}
                   type="button"
                   disabled={mastered}
                   onClick={handleMarkMastered}

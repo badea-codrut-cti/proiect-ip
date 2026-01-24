@@ -30,10 +30,8 @@ interface LoaderData {
 export async function loader() {
   const browserBase =
     import.meta.env.VITE_API_URL || "http://localhost:5000";
-  const serverBase = "http://backend:5000";
 
-  const apiUrl =
-    typeof window === "undefined" ? serverBase : browserBase;
+  const apiUrl = browserBase;
 
   const res = await fetch(`${apiUrl}/api/counters`, {
     credentials: "include",
