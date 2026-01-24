@@ -1,3 +1,5 @@
+import { type UserProfileResponse, type ProfilePicture } from "~/types/profile";
+
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -27,27 +29,6 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
   return data as T;
 }
 
-export interface ProfilePicture {
-  id: number;
-  name: string;
-  description: string | null;
-  cost: number;
-}
-
-export interface UserProfileResponse {
-  id: string;
-  username: string;
-  email: string;
-  xp: number;
-  gems: number;
-  joined_at: string;
-  current_profile_picture: {
-    id: number;
-    name: string;
-    description: string | null;
-  } | null;
-  owned_profile_pictures: ProfilePicture[];
-}
 
 export const profileClient = {
   getProfile: (userId: string) =>
