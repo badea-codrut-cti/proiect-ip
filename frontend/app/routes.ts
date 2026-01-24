@@ -10,4 +10,7 @@ export default [
 
   route("counters/:counterId", "routes/counters.$counterId.tsx"),
 
+  route("contributor/apply", "routes/contributor.apply.tsx"),
+  route("admin/contributor-applications", "routes/admin.contributor-applications.tsx"),
+
 ] satisfies RouteConfig;

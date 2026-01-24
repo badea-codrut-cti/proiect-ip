@@ -30,7 +30,7 @@ router.get("/pending", sessionMiddleware, adminMiddleware, async (req, res) => {
        WHERE ca.status = 'pending'
        ORDER BY ca.applied_at DESC`
     );
-    
+
     return res.status(200).json(result.rows);
   } catch (error) {
     console.error("Error fetching pending applications:", error);
@@ -149,7 +149,7 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: Auth
        FOR UPDATE`,
       [applicationId]
     );
-    
+
     if (applicationResult.rows.length === 0) {
       await authService.getPool().query('ROLLBACK');
       return res.status(404).json({ error: "Application not found or not pending" });
@@ -186,6 +186,12 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: Auth
       console.error("Failed to send approval email:", emailError);
     }
 
+    await authService.getPool().query(
+      `INSERT INTO notifications (user_id, message, type, contributor_application_id)
+       VALUES ($1, $2, $3, $4)`,
+      [userId, `Congratulations! Your contributor application has been approved.`, 'contributor_application_approval', applicationId]
+    );
+
     await authService.getPool().query('COMMIT');
 
     return res.status(200).json({
@@ -193,7 +199,7 @@ router.post("/:id/approve", sessionMiddleware, adminMiddleware, async (req: Auth
       message: "Application approved successfully"
     });
   } catch (error) {
-    await authService.getPool().query('ROLLBACK').catch(() => {});
+    await authService.getPool().query('ROLLBACK').catch(() => { });
     console.error("Error approving application:", error);
     return res.status(500).json({ error: "Failed to approve application" });
   }
@@ -215,7 +221,7 @@ router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req: AuthR
        FOR UPDATE`,
       [applicationId]
     );
-    
+
     if (applicationResult.rows.length === 0) {
       await authService.getPool().query('ROLLBACK');
       return res.status(404).json({ error: "Application not found or not pending" });
@@ -248,6 +254,12 @@ router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req: AuthR
       console.error("Failed to send rejection email:", emailError);
     }
 
+    await authService.getPool().query(
+      `INSERT INTO notifications (user_id, message, type, contributor_application_id)
+       VALUES ($1, $2, $3, $4)`,
+      [application.user_id, `Your contributor application has been rejected. ${reason ? `Reason: ${reason}` : ''}`, 'contributor_application_rejection', applicationId]
+    );
+
     await authService.getPool().query('COMMIT');
 
     return res.status(200).json({
@@ -255,7 +267,7 @@ router.post("/:id/reject", sessionMiddleware, adminMiddleware, async (req: AuthR
       message: "Application rejected successfully"
     });
   } catch (error) {
-    await authService.getPool().query('ROLLBACK').catch(() => {});
+    await authService.getPool().query('ROLLBACK').catch(() => { });
     console.error("Error rejecting application:", error);
     return res.status(500).json({ error: "Failed to reject application" });
   }
@@ -274,7 +286,7 @@ router.get("/my-applications", sessionMiddleware, async (req: AuthRequest, res: 
        ORDER BY applied_at DESC`,
       [req.user.id]
     );
-    
+
     return res.status(200).json(result.rows);
   } catch (error) {
     console.error("Error fetching user applications:", error);

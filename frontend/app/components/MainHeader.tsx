@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Bell, User, LogOut, Trophy } from "lucide-react";
+import { Bell, User, LogOut, Trophy, ChevronDown, ShieldCheck, FileText, LayoutDashboard } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { useAuth } from "~/context/AuthContext";
@@ -30,7 +30,12 @@ const navItems: NavItem[] = [
     to: "/contributions",
     roles: ["contributor", "admin"],
   },
-  { id: "admin", label: "ADMIN", to: "/admin", roles: ["admin"] },
+  {
+    id: "apply-contrib",
+    label: "BECOME CONTRIBUTOR",
+    to: "/contributor/apply",
+    roles: ["learner"],
+  },
 ];
 
 interface MainHeaderProps {
@@ -44,7 +49,6 @@ interface MainHeaderProps {
 interface UiProfile {
   id: string;
   username: string;
-  email: string;
   level: number;
   xp: number;
   nextLevelXp: number;
@@ -66,7 +70,6 @@ function mapRealProfileToUi(profile: UserProfileResponse): UiProfile {
   return {
     id: profile.id,
     username: profile.username,
-    email: profile.email,
     level,
     xp,
     nextLevelXp,
@@ -77,7 +80,6 @@ function mapMockFromUiUser(user: UiUser): UiProfile {
   return {
     id: user.id,
     username: user.displayName,
-    email: "mock@example.com",
     level: user.level,
     xp: user.xp,
     nextLevelXp: user.nextLevelXp,
@@ -98,14 +100,19 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const adminMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (!profileMenuRef.current) return;
-      if (profileMenuRef.current.contains(event.target as Node)) return;
-      setIsProfileOpen(false);
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+      if (adminMenuRef.current && !adminMenuRef.current.contains(event.target as Node)) {
+        setIsAdminOpen(false);
+      }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
@@ -257,6 +264,48 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
                 </Link>
               );
             })}
+
+            {isAuthenticated && authUser?.role === "admin" && (
+              <div className="relative" ref={adminMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsAdminOpen((o) => !o)}
+                  className={
+                    "flex items-center gap-1 transition-colors hover:text-slate-900 dark:hover:text-slate-100" +
+                    (isAdminOpen || activeNav?.startsWith("admin")
+                      ? " text-slate-900 dark:text-slate-100"
+                      : " text-slate-500 dark:text-slate-400")
+                  }
+                >
+                  <span className="inline-flex items-center gap-1">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    ADMIN
+                  </span>
+                  <ChevronDown className={`h-3 w-3 transition-transform ${isAdminOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {isAdminOpen && (
+                  <div className="absolute left-0 mt-4 w-48 rounded-xl border border-slate-200 bg-white py-2 shadow-lg text-left dark:border-slate-700 dark:bg-slate-900 z-50 animate-in fade-in zoom-in duration-200">
+                    <Link
+                      to="/admin"
+                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                      onClick={() => setIsAdminOpen(false)}
+                    >
+                      <LayoutDashboard className="h-3.5 w-3.5" />
+                      Dashboard
+                    </Link>
+                    <Link
+                      to="/admin/contributor-applications"
+                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                      onClick={() => setIsAdminOpen(false)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Applications
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
           </nav>
         )}
 

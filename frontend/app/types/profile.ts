@@ -8,9 +8,10 @@ export interface ProfilePicture {
 export interface UserProfileResponse {
     id: string;
     username: string;
-    email: string;
     xp: number;
     gems: number;
+    is_admin: boolean;
+    is_contributor: boolean;
     joined_at: string;
     current_profile_picture: {
         id: number;
@@ -24,11 +25,12 @@ export interface UserProfileResponse {
 export interface UiProfile {
     id: string;
     username: string;
-    email: string;
     level: number;
     xp: number;
     nextLevelXp: number;
     gems: number;
+    is_admin: boolean;
+    is_contributor: boolean;
     joinedAt?: string;
     streakDays: number;
     badgesCount: number;

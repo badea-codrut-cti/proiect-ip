@@ -13,6 +13,7 @@ interface User {
   password_reset_token?: string | null;
   joined_at?: string;
   is_admin?: boolean;
+  is_contributor?: boolean;
 }
 
 interface Session {
@@ -24,6 +25,9 @@ interface Session {
   username?: string;
   email?: string;
   display_name?: string;
+  is_admin?: boolean;
+  is_contributor?: boolean;
+  password_hash?: string;
 }
 
 interface PasswordHashResult {
@@ -125,7 +129,7 @@ class AuthService {
   async validateSession(sessionId: string): Promise<Session | null> {
     const result = await this.pool.query(
       `SELECT s.id, s.user_id, s.active_expires, s.idle_expires, s.created_at,
-              u.username, u.email, u.display_name
+              u.username, u.email, u.display_name, u.is_admin, u.is_contributor, u.password_hash
        FROM user_session s
        JOIN users u ON s.user_id = u.id
        WHERE s.id = $1 AND s.active_expires > $2`,

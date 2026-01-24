@@ -22,6 +22,8 @@ export interface AuthRequest extends Request {
     email: string;
     display_name?: string;
     password_hash: string;
+    is_admin?: boolean;
+    is_contributor?: boolean;
   };
   session?: {
     id: string;
@@ -32,6 +34,8 @@ export interface AuthRequest extends Request {
     username?: string;
     email?: string;
     display_name?: string;
+    is_admin?: boolean;
+    is_contributor?: boolean;
   };
 }
 
@@ -53,7 +57,9 @@ export const sessionMiddleware = async (
           username: session.username,
           email: session.email,
           display_name: session.display_name,
-          password_hash: session.password_hash
+          password_hash: session.password_hash,
+          is_admin: session.is_admin,
+          is_contributor: session.is_contributor
         } as AuthRequest['user'];
       }
     } catch (error) {

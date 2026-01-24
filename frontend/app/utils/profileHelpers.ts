@@ -17,11 +17,12 @@ export function mapRealProfileToUi(profile: UserProfileResponse): UiProfile {
     return {
         id: profile.id,
         username: profile.username,
-        email: profile.email,
         level,
         xp,
         nextLevelXp,
         gems: profile.gems ?? 0,
+        is_admin: profile.is_admin ?? false,
+        is_contributor: profile.is_contributor ?? false,
         joinedAt: profile.joined_at,
         streakDays: 7,
         badgesCount,

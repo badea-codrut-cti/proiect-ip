@@ -9,6 +9,7 @@ import {
   Flame,
   Medal,
   Trophy,
+  ShieldCheck,
   Settings as SettingsIcon,
 } from "lucide-react";
 
@@ -174,8 +175,22 @@ export default function UserProfile() {
                 <img src={avatarImg} alt="Avatar" className="h-14 w-14 object-cover" />
               </div>
               <div>
-                <h1 className="text-base font-semibold text-slate-900 dark:text-slate-50">{uiProfile.username}</h1>
-                <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">Level {uiProfile.level}</div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base font-semibold text-slate-900 dark:text-slate-50">{uiProfile.username}</h1>
+                  {uiProfile.is_admin && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[0.65rem] font-bold text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800 shadow-sm">
+                      <ShieldCheck className="h-3 w-3" />
+                      ADMIN
+                    </span>
+                  )}
+                  {uiProfile.is_contributor && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[0.65rem] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800 shadow-sm">
+                      <Medal className="h-3 w-3" />
+                      CONTRIBUTOR
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-xs text-slate-600 dark:text-slate-300">Level {uiProfile.level}</div>
                 <div className="mt-2 flex flex-col gap-1 text-xs text-slate-500 dark:text-slate-300">
                   <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden max-w-xs">
                     <div className="h-full rounded-full bg-slate-900 dark:bg-slate-50" style={{ width: `${xpPercent}%` }} />
