@@ -22,8 +22,8 @@ const submitExerciseSchema = z.object({
 
 const XP_REWARD_CORRECT = 30;
 const XP_REWARD_INCORRECT = 5;
-const FAST_RESPONSE_TIME = 5000;
-const DECENT_RESPONSE_TIME = 10000;
+const FAST_RESPONSE_TIME = 10000;
+const DECENT_RESPONSE_TIME = 20000;
 
 function generateRandomNumber(min: number, max: number, decimalPoints: number): number {
   const safeDecimalPoints = Math.max(0, Math.trunc(decimalPoints));
@@ -51,6 +51,46 @@ function initFsrs(userParams: number[] | null, desiredRetention: number = 0.9) {
   return fsrs(fsrsParams);
 }
 
+router.get('/pending', sessionMiddleware, async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const pool = authService.getPool();
+
+  try {
+    const result = await pool.query(
+      `SELECT COUNT(*) as count FROM (
+        SELECT DISTINCT ON (counter_id) due, completed_at, scheduled_days
+        FROM reviews
+        WHERE user_id = $1
+        ORDER BY counter_id, completed_at DESC NULLS FIRST, created_at DESC
+      ) as latest_states
+      WHERE completed_at IS NULL OR due <= CURRENT_TIMESTAMP OR scheduled_days = 0`,
+      [req.user.id]
+    );
+
+    const dueCountersResult = await pool.query(
+      `SELECT counter_id FROM (
+        SELECT DISTINCT ON (counter_id) counter_id, due, completed_at, scheduled_days
+        FROM reviews
+        WHERE user_id = $1
+        ORDER BY counter_id, completed_at DESC NULLS FIRST, created_at DESC
+      ) as latest_states
+      WHERE completed_at IS NULL OR due <= CURRENT_TIMESTAMP OR scheduled_days = 0`,
+      [req.user.id]
+    );
+
+    return res.status(200).json({
+      count: parseInt(result.rows[0].count, 10),
+      due_counters: dueCountersResult.rows.map(r => r.counter_id)
+    });
+  } catch (error) {
+    console.error('Failed to fetch pending reviews:', error);
+    return res.status(500).json({ error: 'Failed to fetch pending reviews' });
+  }
+});
+
 router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Response) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
@@ -65,6 +105,30 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
   const pool = authService.getPool();
 
   try {
+    // Check for an existing pending review for this counter
+    const pendingReviewResult = await pool.query(
+      `SELECT r.id, r.generated_number, e.id as exercise_id, e.sentence, e.decimal_points
+       FROM reviews r
+       JOIN exercises e ON r.exercise_id = e.id
+       WHERE r.user_id = $1 AND r.counter_id = $2 AND r.completed_at IS NULL
+       LIMIT 1`,
+      [req.user.id, counterId]
+    );
+
+    if (pendingReviewResult.rowCount > 0) {
+      const pendingReview = pendingReviewResult.rows[0];
+      return res.status(200).json({
+        review_id: pendingReview.id,
+        exercise: {
+          id: pendingReview.exercise_id,
+          sentence: pendingReview.sentence,
+          counter_id: counterId,
+          decimal_points: Number(pendingReview.decimal_points)
+        },
+        generated_number: Number(pendingReview.generated_number)
+      });
+    }
+
     const exercisesResult = await pool.query(
       `SELECT e.id, e.sentence, e.min_count, e.max_count, e.decimal_points, c.name as counter_name
        FROM exercises e
@@ -99,17 +163,37 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
       return res.status(500).json({ error: 'Failed to derive answer for the requested counter' });
     }
 
+    const lastReviewResult = await pool.query(
+      `SELECT stability, difficulty, elapsed_days, scheduled_days, reps, lapses, state, due
+       FROM reviews
+       WHERE user_id = $1 AND counter_id = $2 AND completed_at IS NOT NULL
+       ORDER BY completed_at DESC
+       LIMIT 1`,
+      [req.user.id, counterId]
+    );
+
+    const initialCard = lastReviewResult.rows[0] || createEmptyCard(new Date());
     const reviewId = randomUUID();
 
     await pool.query(
-      `INSERT INTO reviews (id, user_id, counter_id, exercise_id, generated_number)
-       VALUES ($1, $2, $3, $4, $5)`,
+      `INSERT INTO reviews (
+        id, user_id, counter_id, exercise_id, generated_number,
+        stability, difficulty, elapsed_days, scheduled_days, reps, lapses, due
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
       [
         reviewId,
         req.user.id,
         counterId,
         chosenExercise.id,
-        generatedNumber
+        generatedNumber,
+        initialCard.stability,
+        initialCard.difficulty,
+        initialCard.elapsed_days,
+        initialCard.scheduled_days,
+        initialCard.reps,
+        initialCard.lapses,
+        initialCard.due
       ]
     );
 
@@ -186,13 +270,13 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
       `SELECT rs.id, rs.generated_number, rs.completed_at, rs.user_id,
               e.counter_id, c.name as counter_name,
               u.fsrs_params, u.desired_retention,
-              cs.stability, cs.difficulty, cs.elapsed_days, cs.scheduled_days, 
-              cs.reps, cs.lapses, cs.state, cs.due, cs.last_review, rs.created_at
+              rs.stability, rs.difficulty, rs.elapsed_days, rs.scheduled_days, 
+              rs.reps, rs.lapses, rs.state, rs.due, 
+              EXTRACT(EPOCH FROM rs.created_at) * 1000 as created_at_ms
        FROM reviews rs
        JOIN exercises e ON e.id = rs.exercise_id
        JOIN counters c ON c.id = e.counter_id
        JOIN users u ON u.id = rs.user_id
-       LEFT JOIN card_state cs ON cs.user_id = rs.user_id AND cs.counter_id = e.counter_id
        WHERE rs.id = $1`,
       [reviewId]
     );
@@ -218,26 +302,32 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
     const xpAwarded = isCorrect ? XP_REWARD_CORRECT : XP_REWARD_INCORRECT;
     const fsrsInstance = initFsrs(review.fsrs_params, review.desired_retention);
     const now = new Date();
-    let card: Card;
 
-    if (review.stability !== null) {
-      card = {
-        due: new Date(review.due),
-        stability: review.stability,
-        difficulty: review.difficulty,
-        elapsed_days: review.elapsed_days,
-        scheduled_days: review.scheduled_days,
-        reps: review.reps,
-        lapses: review.lapses,
-        state: review.state,
-        last_review: review.last_review ? new Date(review.last_review) : undefined,
-        learning_steps: 0
-      };
-    } else {
-      card = createEmptyCard(now);
-    }
+    // Fetch the incoming state (previous review's result state)
+    // The current row's 'state' is NULL (due to constraint)
+    const prevReviewResult = await pool.query(
+      `SELECT state FROM reviews 
+       WHERE user_id = $1 AND counter_id = $2 AND completed_at IS NOT NULL 
+       ORDER BY completed_at DESC LIMIT 1`,
+      [req.user.id, review.counter_id]
+    );
+    const incomingState = prevReviewResult.rows[0]?.state ?? 0;
 
-    const timeDiff = now.getTime() - new Date(review.created_at).getTime();
+    const card: Card = {
+      due: new Date(review.due),
+      stability: Number(review.stability),
+      difficulty: Number(review.difficulty),
+      elapsed_days: Number(review.elapsed_days),
+      scheduled_days: Number(review.scheduled_days),
+      reps: Number(review.reps),
+      lapses: Number(review.lapses),
+      state: incomingState,
+      last_review: review.reps > 0 ? new Date(review.due) : undefined,
+      learning_steps: 0
+    };
+
+
+    const timeDiff = now.getTime() - Number(review.created_at_ms);
 
     const rating = isCorrect ? timeDiff < FAST_RESPONSE_TIME ? Rating.Easy : timeDiff < DECENT_RESPONSE_TIME ? Rating.Good : Rating.Hard : Rating.Again;
     const schedulingCards = fsrsInstance.repeat(card, now);
@@ -253,10 +343,29 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
          SET completed_at = CURRENT_TIMESTAMP,
              submitted_answer = $1,
              rating = $2,
-             state = $3
-         WHERE id = $4
+             state = $3,
+             stability = $4,
+             difficulty = $5,
+             elapsed_days = $6,
+             scheduled_days = $7,
+             reps = $8,
+             lapses = $9,
+             due = $10
+         WHERE id = $11
          RETURNING rating`,
-        [answer, rating, newCard.state, reviewId]
+        [
+          answer,
+          rating,
+          newCard.state,
+          newCard.stability,
+          newCard.difficulty,
+          newCard.elapsed_days,
+          newCard.scheduled_days,
+          newCard.reps,
+          newCard.lapses,
+          newCard.due,
+          reviewId
+        ]
       );
 
       const userResult = await pool.query(

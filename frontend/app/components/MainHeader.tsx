@@ -8,6 +8,7 @@ import {
   profileClient,
   type UserProfileResponse,
 } from "~/utils/profileClient";
+import { apiFetch } from "~/utils/api";
 import type { Role, UiUser } from "~/types/auth";
 
 interface NavItem {
@@ -157,16 +158,16 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
   const xpPercent =
     uiProfile && uiProfile.nextLevelXp > 0
       ? Math.min(
-          100,
-          Math.round((uiProfile.xp / uiProfile.nextLevelXp) * 100)
-        )
+        100,
+        Math.round((uiProfile.xp / uiProfile.nextLevelXp) * 100)
+      )
       : 0;
 
   const visibleNavItems =
     isAuthenticated && authUser
       ? navItems.filter(
-          (item) => !item.roles || item.roles.includes(authUser.role)
-        )
+        (item) => !item.roles || item.roles.includes(authUser.role)
+      )
       : [];
 
   const handleMockLogin = () => {
@@ -178,6 +179,26 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
     await logout();
     setIsProfileOpen(false);
   };
+
+  const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0);
+
+  useEffect(() => {
+    if (!isAuthenticated || mode === "mock") return;
+
+    const fetchPendingCount = async () => {
+      try {
+        const data = await apiFetch<{ count: number }>("/api/exercise-attempts/pending");
+        setPendingReviewsCount(data.count);
+      } catch (error) {
+        console.error("Failed to fetch pending reviews count:", error);
+      }
+    };
+
+    fetchPendingCount();
+    // Fetch every 5 minutes
+    const interval = setInterval(fetchPendingCount, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, mode]);
 
   return (
     <header className="border-b bg-white dark:bg-slate-900 dark:border-slate-800">
@@ -220,6 +241,15 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
                     <span className="inline-flex items-center gap-1">
                       <Trophy className="h-3 w-3" />
                       {item.label}
+                    </span>
+                  ) : item.id === "reviews" ? (
+                    <span className="inline-flex items-center gap-2">
+                      {item.label}
+                      {pendingReviewsCount > 0 && (
+                        <span className="inline-flex items-center justify-center bg-red-500 text-white text-[0.6rem] font-bold px-1.5 py-0.5 rounded-full min-w-[1.2rem]">
+                          {pendingReviewsCount}
+                        </span>
+                      )}
                     </span>
                   ) : (
                     item.label
