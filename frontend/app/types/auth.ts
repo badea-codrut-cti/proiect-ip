@@ -8,4 +8,6 @@ export interface UiUser {
   level: number;
   xp: number;
   nextLevelXp: number;
+  is_admin: boolean;
+  is_contributor: boolean;
 }
