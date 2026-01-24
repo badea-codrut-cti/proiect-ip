@@ -5,7 +5,7 @@ import { counterToKana } from '../counter/index.js';
 import { authService, sessionMiddleware, AuthRequest } from '../middleware/auth.js';
 import { generatorParameters, fsrs, createEmptyCard, Rating } from 'ts-fsrs';
 import type { Card, FSRSParameters } from 'ts-fsrs';
-import { computeParameters, FSRSBindingReview, FSRSBindingItem } from '@open-spaced-repetition/binding';
+// import { computeParameters, FSRSBindingReview, FSRSBindingItem } from '@open-spaced-repetition/binding';
 import { calculateWeeklyPoints, getCurrentWeekStart } from '../services/leaderboard.js';
 
 const router = express.Router();
@@ -133,6 +133,19 @@ router.post('/recalculate', sessionMiddleware, async(req: AuthRequest, res: Resp
 		return res.status(401).json({ error: 'Not authenticated' });
 	}
 
+let binding: typeof import("@open-spaced-repetition/binding") | null = null;
+
+async function getBinding() {
+  if (binding) return binding;
+  try {
+    binding = await import("@open-spaced-repetition/binding");
+    return binding;
+  } catch (e) {
+    return null;
+  }
+}
+
+
 	const pool = authService.getPool();
 
 	try {
@@ -144,13 +157,29 @@ router.post('/recalculate', sessionMiddleware, async(req: AuthRequest, res: Resp
 
 		const reviews = reviewRows.rows;
 
-		
-		const groupedReviews = Object.values(reviews.reduce((acc, el) => {
-			(acc[el.counter_id] ??= []).push(new FSRSBindingReview(el.rating, acc[el.counter_id].length + 1));
-			return acc;
-		}, {}));
+    const b = await getBinding();
+if (!b) {
+  return res.status(503).json({
+    error:
+      "FSRS optimizer native binding is not available in this environment. (Backend can run; optimizer route disabled.)",
+  });
+}
 
-		const newParams = await computeParameters(groupedReviews.map(el => new FSRSBindingItem(el)));
+const { computeParameters, FSRSBindingReview, FSRSBindingItem } = b;
+
+
+		
+const groupedReviews = Object.values(
+  reviews.reduce<Record<string, InstanceType<typeof FSRSBindingReview>[]>>((acc, el: any) => {
+    const key = String(el.counter_id);
+    (acc[key] ??= []).push(new FSRSBindingReview(el.rating, acc[key].length + 1));
+    return acc;
+  }, {})
+);
+
+const newParams = await computeParameters(
+  groupedReviews.map((arr) => new FSRSBindingItem(arr))
+);
 
 		await pool.query(`
 			UPDATE users
@@ -165,6 +194,43 @@ router.post('/recalculate', sessionMiddleware, async(req: AuthRequest, res: Resp
 	}
 
 });
+
+router.get('/', sessionMiddleware, async (req: AuthRequest, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  const pool = authService.getPool();
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        r.id,
+        r.created_at,
+        r.completed_at,
+        r.rating,
+        r.state,
+        r.exercise_id,
+        r.counter_id,
+        r.submitted_answer,
+        r.generated_number
+      FROM reviews r
+      WHERE r.user_id = $1
+      ORDER BY COALESCE(r.completed_at, r.created_at) DESC
+      LIMIT 500
+      `,
+      [req.user.id]
+    );
+
+    return res.status(200).json(result.rows);
+  } catch (error) {
+    console.error('Failed to fetch exercise attempts:', error);
+    return res.status(500).json({ error: 'Failed to fetch exercise attempts' });
+  }
+});
+
+
 
 router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response) => {
   if (!req.user) {

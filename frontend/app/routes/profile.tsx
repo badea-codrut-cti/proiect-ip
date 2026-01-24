@@ -1,21 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Route } from "./+types/profile";
 import { Link, useNavigate } from "react-router";
-import {
-  Bell,
-  User,
-  LogOut,
-  Target,
-  Flame,
-  Medal,
-  Trophy,
-} from "lucide-react";
+import { User, LogOut, Target, Flame, Medal, Trophy, Pencil } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import { useAuth } from "~/context/AuthContext";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { profileClient, type UserProfileResponse } from "~/utils/profileClient";
 import type { UiUser } from "~/types/auth";
+
+import { NotificationsDropdown } from "~/components/NotificationsDropdown";
+import { exerciseAttemptsClient } from "~/utils/exerciseAttemptsClient";
 
 import avatarImg from "~/assets/avatars/user-default.png";
 import badgeFirstSteps from "~/assets/badges/first-steps.png";
@@ -94,27 +89,25 @@ function mapMockFromUiUser(user: UiUser): UiProfile {
   };
 }
 
+/** ---- Heatmap mockup (unchanged) ---- */
 const weeks = 53;
 const daysPerWeek = 7;
-const contributionLevels: number[] = Array.from(
-  { length: weeks * daysPerWeek },
-  (_, i) => {
-    const day = i % daysPerWeek;
-    const week = Math.floor(i / daysPerWeek);
+const contributionLevels: number[] = Array.from({ length: weeks * daysPerWeek }, (_, i) => {
+  const day = i % daysPerWeek;
+  const week = Math.floor(i / daysPerWeek);
 
-    let level = 0;
-    const r = Math.random();
-    if (r < 0.55) level = 1;
-    if (r < 0.3) level = 2;
-    if (r < 0.1) level = 3;
+  let level = 0;
+  const r = Math.random();
+  if (r < 0.55) level = 1;
+  if (r < 0.3) level = 2;
+  if (r < 0.1) level = 3;
 
-    if (week >= 18 && week <= 36 && day >= 1 && day <= 4 && level > 0) {
-      level = Math.min(3, level + 1);
-    }
-
-    return level;
+  if (week >= 18 && week <= 36 && day >= 1 && day <= 4 && level > 0) {
+    level = Math.min(3, level + 1);
   }
-);
+
+  return level;
+});
 
 const intensityClasses = [
   "bg-emerald-50 dark:bg-emerald-950",
@@ -123,23 +116,10 @@ const intensityClasses = [
   "bg-emerald-500 dark:bg-emerald-500",
 ];
 
-const months = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
-
+const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+/** ---- Badges (unchanged) ---- */
 interface BadgeConfig {
   label: string;
   image: string;
@@ -154,6 +134,102 @@ const badgeConfigs: BadgeConfig[] = [
   { label: "Counter King", image: badgeCounterKing },
 ];
 
+/** ---- Performance stats helpers ---- */
+type StatsCardData = {
+  total: number;
+  correct: number;
+  accuracyPct: number;
+  last7Total: number;
+  last7Correct: number;
+  last7AccuracyPct: number;
+  daily7: { date: string; total: number; correct: number }[];
+};
+
+function toISODate(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+function isAttemptCorrect(a: any): boolean {
+  if (!a || typeof a !== "object") return false;
+
+  if (typeof a.is_correct === "boolean") return a.is_correct;
+  if (typeof a.correct === "boolean") return a.correct;
+  if (typeof a.isCorrect === "boolean") return a.isCorrect;
+  if (typeof a.success === "boolean") return a.success;
+
+  if (typeof a.state === "string") {
+    const s = a.state.toLowerCase();
+    if (s.includes("correct") || s === "ok" || s === "success") return true;
+    if (s.includes("wrong") || s.includes("incorrect") || s === "fail") return false;
+  }
+
+  if (typeof a.rating === "number") return a.rating >= 3;
+
+  return false;
+}
+
+function attemptDateISO(a: any): string | null {
+  const candidates = [
+    a.completed_at,
+    a.created_at,
+    a.reviewed_at,
+    a.attempted_at,
+    a.timestamp,
+    a.date,
+  ].filter(Boolean);
+
+  for (const c of candidates) {
+    const d = new Date(c);
+    if (!Number.isNaN(d.getTime())) return toISODate(d);
+  }
+  return null;
+}
+
+function normalizeAttempts(raw: any): any[] {
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === "object") {
+    if (Array.isArray(raw.attempts)) return raw.attempts;
+    if (Array.isArray(raw.data)) return raw.data;
+    if (Array.isArray(raw.items)) return raw.items;
+  }
+  return [];
+}
+
+function computeStats(attempts: any[]): StatsCardData {
+  const total = attempts.length;
+  const correct = attempts.reduce((acc, a) => acc + (isAttemptCorrect(a) ? 1 : 0), 0);
+  const accuracyPct = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const start = new Date(today);
+  start.setDate(today.getDate() - 6);
+
+  const map7 = new Map<string, { total: number; correct: number }>();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    map7.set(toISODate(d), { total: 0, correct: 0 });
+  }
+
+  for (const a of attempts) {
+    const iso = attemptDateISO(a);
+    if (!iso) continue;
+    const bucket = map7.get(iso);
+    if (!bucket) continue;
+    bucket.total += 1;
+    if (isAttemptCorrect(a)) bucket.correct += 1;
+  }
+
+  const daily7 = Array.from(map7.entries()).map(([date, v]) => ({ date, ...v }));
+  const last7Total = daily7.reduce((acc, d) => acc + d.total, 0);
+  const last7Correct = daily7.reduce((acc, d) => acc + d.correct, 0);
+  const last7AccuracyPct = last7Total > 0 ? Math.round((last7Correct / last7Total) * 100) : 0;
+
+  return { total, correct, accuracyPct, last7Total, last7Correct, last7AccuracyPct, daily7 };
+}
+
 export default function Profile() {
   const navigate = useNavigate();
   const { user: authUser, mode, loading: authLoading, logout } = useAuth();
@@ -162,6 +238,11 @@ export default function Profile() {
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  // stats
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [stats, setStats] = useState<StatsCardData | null>(null);
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
 
@@ -203,8 +284,7 @@ export default function Profile() {
         setUiProfile(mapRealProfileToUi(profileData));
       } catch (err) {
         if (cancelled) return;
-        const msg =
-          err instanceof Error ? err.message : "Failed to load profile";
+        const msg = err instanceof Error ? err.message : "Failed to load profile";
         setProfileError(msg);
       } finally {
         if (!cancelled) setProfileLoading(false);
@@ -216,6 +296,44 @@ export default function Profile() {
     };
   }, [authUser, mode, authLoading, navigate]);
 
+  const reloadStats = async () => {
+    if (!authUser || authLoading) return;
+
+    if (mode === "mock") {
+      const mockAttempts = Array.from({ length: 42 }, (_, i) => ({
+        created_at: new Date(Date.now() - i * 36 * 3600 * 1000).toISOString(),
+        is_correct: Math.random() > 0.25,
+      }));
+      setStats(computeStats(mockAttempts));
+      setStatsError(null);
+      setStatsLoading(false);
+      return;
+    }
+
+    setStatsLoading(true);
+    setStatsError(null);
+
+    try {
+      const raw = await exerciseAttemptsClient.listMine();
+      const attempts = normalizeAttempts(raw);
+      setStats(computeStats(attempts));
+    } catch (e) {
+      setStatsError(e instanceof Error ? e.message : "Failed to load stats");
+      setStats(null);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!authUser) return;
+
+    // auto load once
+    void reloadStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, authUser, mode]);
+
   const handleLogout = async () => {
     await logout();
     navigate("/");
@@ -223,10 +341,7 @@ export default function Profile() {
 
   const xpPercent =
     uiProfile && uiProfile.nextLevelXp > 0
-      ? Math.min(
-          100,
-          Math.round((uiProfile.xp / uiProfile.nextLevelXp) * 100)
-        )
+      ? Math.min(100, Math.round((uiProfile.xp / uiProfile.nextLevelXp) * 100))
       : 0;
 
   const ownedBadgeCount = uiProfile?.badgesCount ?? 0;
@@ -244,28 +359,16 @@ export default function Profile() {
           </div>
 
           <nav className="hidden md:flex items-center gap-6 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-            <Link
-              to="/"
-              className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-            >
+            <Link to="/" className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
               Home
             </Link>
-            <Link
-              to="/reviews"
-              className="hover:text-slate-900 transition-colors"
-            >
+            <Link to="/reviews" className="hover:text-slate-900 transition-colors">
               Reviews
             </Link>
-            <Link
-              to="/counters"
-              className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-            >
+            <Link to="/counters" className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
               <span>Counters</span>
             </Link>
-            <Link
-              to="/badges"
-              className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-            >
+            <Link to="/badges" className="hover:text-slate-900 dark:hover:text-slate-100 transition-colors">
               Badges
             </Link>
             <Link
@@ -280,14 +383,7 @@ export default function Profile() {
           <div className="flex items-center gap-3">
             <ThemeToggle />
 
-            <button
-              type="button"
-              className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              aria-label="Notifications"
-            >
-              <Bell className="h-4 w-4 text-slate-600 dark:text-slate-200" />
-              <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500" />
-            </button>
+            <NotificationsDropdown />
 
             <div className="relative" ref={profileMenuRef}>
               <button
@@ -331,6 +427,15 @@ export default function Profile() {
                     </Link>
 
                     <Link
+                      to="/profile/edit"
+                      className="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-100"
+                      onClick={() => setIsProfileOpen(false)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      <span className="text-xs">Account settings</span>
+                    </Link>
+
+                    <Link
                       to="/settings"
                       className="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-100"
                       onClick={() => setIsProfileOpen(false)}
@@ -367,9 +472,7 @@ export default function Profile() {
           </button>
 
           {profileLoading && (
-            <div className="text-xs text-slate-500 dark:text-slate-400">
-              Loading profile…
-            </div>
+            <div className="text-xs text-slate-500 dark:text-slate-400">Loading profile…</div>
           )}
 
           {profileError && !profileLoading && (
@@ -383,11 +486,7 @@ export default function Profile() {
               <section className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm flex flex-col gap-4 md:flex-row md:items-center md:justify-between dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center gap-4">
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 overflow-hidden dark:bg-slate-800">
-                    <img
-                      src={avatarSrc}
-                      alt="User avatar"
-                      className="h-14 w-14 object-cover"
-                    />
+                    <img src={avatarSrc} alt="User avatar" className="h-14 w-14 object-cover" />
                   </div>
                   <div>
                     <h1 className="text-base font-semibold text-slate-900 dark:text-slate-50">
@@ -413,7 +512,7 @@ export default function Profile() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3 text-xs">
+                <div className="flex flex-wrap items-center gap-3 text-xs">
                   <div className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-amber-700 dark:bg-amber-900 dark:text-amber-200">
                     <Flame className="h-3 w-3" />
                     <span>{uiProfile.streakDays} Day Streak</span>
@@ -426,9 +525,121 @@ export default function Profile() {
                     <Target className="h-3 w-3" />
                     <span>{uiProfile.reviewsCount} Reviews Completed</span>
                   </div>
+
+                  <Button asChild variant="outline" className="text-xs">
+                    <Link to="/profile/edit">Account settings</Link>
+                  </Button>
                 </div>
               </section>
 
+              {/* Performance stats card */}
+              <section className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
+                      Performance stats
+                    </h2>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                      Based on your recent exercise attempts.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={reloadStats}
+                    className="text-[0.7rem] text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                    title="Refresh stats"
+                  >
+                    Refresh
+                  </button>
+                </div>
+
+                {statsLoading && (
+                  <div className="mt-4 text-xs text-slate-500 dark:text-slate-400">
+                    Loading stats…
+                  </div>
+                )}
+
+                {statsError && !statsLoading && (
+                  <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+                    {statsError}
+                  </div>
+                )}
+
+                {stats && !statsLoading && !statsError && (
+                  <div className="mt-4 grid gap-4 md:grid-cols-3">
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+                      <div className="text-[0.7rem] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                        Overall
+                      </div>
+                      <div className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-50">
+                        {stats.accuracyPct}%
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {stats.correct}/{stats.total} correct
+                      </div>
+                      <div className="mt-3 h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-slate-900 dark:bg-slate-50"
+                          style={{ width: `${stats.accuracyPct}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+                      <div className="text-[0.7rem] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                        Last 7 days
+                      </div>
+                      <div className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-50">
+                        {stats.last7AccuracyPct}%
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {stats.last7Correct}/{stats.last7Total} correct
+                      </div>
+                      <div className="mt-3 h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-slate-900 dark:bg-slate-50"
+                          style={{ width: `${stats.last7AccuracyPct}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-950">
+                      <div className="text-[0.7rem] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                        Activity
+                      </div>
+                      <div className="mt-3 grid grid-cols-7 gap-1">
+                        {stats.daily7.map((d) => {
+                          const pct = d.total > 0 ? Math.round((d.correct / d.total) * 100) : 0;
+                          const lvl = d.total === 0 ? 0 : pct >= 85 ? 3 : pct >= 60 ? 2 : 1;
+
+                          const cls =
+                            lvl === 0
+                              ? "bg-slate-200 dark:bg-slate-800"
+                              : lvl === 1
+                              ? "bg-emerald-200 dark:bg-emerald-900"
+                              : lvl === 2
+                              ? "bg-emerald-300 dark:bg-emerald-700"
+                              : "bg-emerald-500 dark:bg-emerald-500";
+
+                          return (
+                            <div key={d.date} className="flex flex-col items-center gap-1">
+                              <div
+                                className={`h-6 w-6 rounded-md ${cls}`}
+                                title={`${d.date}: ${d.correct}/${d.total} correct`}
+                              />
+                              <div className="text-[0.6rem] text-slate-400 dark:text-slate-500">
+                                {d.date.slice(8, 10)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              {/* Heatmap mockup (unchanged) */}
               <section className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                   Contribution Activity
@@ -451,8 +662,7 @@ export default function Profile() {
                     <div className="grid grid-cols-[repeat(53,0.75rem)] grid-rows-7 gap-1.5">
                       {contributionLevels.map((lvl, i) => {
                         const clamped = Math.max(0, Math.min(3, lvl));
-                        const className =
-                          "h-3 w-3 rounded-full " + intensityClasses[clamped];
+                        const className = "h-3 w-3 rounded-full " + intensityClasses[clamped];
                         return <div key={i} className={className} />;
                       })}
                     </div>
@@ -471,6 +681,7 @@ export default function Profile() {
                 </div>
               </section>
 
+              {/* Badges (unchanged) */}
               <section className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
                 <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-50">
                   Earned Badges
@@ -503,10 +714,7 @@ function SettingsIcon() {
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      <path
-        d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"
-        fill="currentColor"
-      />
+      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" fill="currentColor" />
       <path
         d="M4 13.5v-3l2-.5.7-1.7-1.2-1.7 2.1-2.1 1.7 1.2L11 3h3l.5 2 1.7.7 1.7-1.2 2.1 2.1-1.2 1.7.7 1.7 2 .5v3l-2 .5-.7 1.7 1.2 1.7-2.1 2.1-1.7-1.2-1.7.7-.5 2h-3l-.5-2-1.7-.7-1.7 1.2-2.1-2.1 1.2-1.7-.7-1.7-2-.5Z"
         fill="none"
@@ -527,8 +735,7 @@ interface BadgeCardProps {
 }
 
 function BadgeCard({ label, image, highlighted, locked }: BadgeCardProps) {
-  const base =
-    "flex flex-col items-center justify-center gap-2 rounded-2xl border px-4 py-4";
+  const base = "flex flex-col items-center justify-center gap-2 rounded-2xl border px-4 py-4";
 
   const highlightClasses = highlighted
     ? "border-slate-900 bg-slate-50 dark:border-slate-100 dark:bg-slate-800"
@@ -539,11 +746,7 @@ function BadgeCard({ label, image, highlighted, locked }: BadgeCardProps) {
   return (
     <div className={`${base} ${highlightClasses}`}>
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 overflow-hidden dark:bg-slate-800">
-        <img
-          src={image}
-          alt={label}
-          className="h-10 w-10 object-contain"
-        />
+        <img src={image} alt={label} className="h-10 w-10 object-contain" />
       </div>
       <span className="text-xs font-medium text-slate-800 text-center dark:text-slate-100">
         {label}

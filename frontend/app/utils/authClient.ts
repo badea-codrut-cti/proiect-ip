@@ -30,6 +30,7 @@ async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> 
 }
 
 export interface AuthUser {
+  display_name?: string;
   id: string;          // TEXT in DB
   username: string;
   email: string;

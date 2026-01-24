@@ -44,7 +44,8 @@ export const sessionMiddleware = async (
 
   if (sessionId) {
     try {
-      const session = await authService.validateSession(sessionId);
+      const session = (await authService.validateSession(sessionId)) as any; // quick fix
+
 
       if (session) {
         req.session = session;

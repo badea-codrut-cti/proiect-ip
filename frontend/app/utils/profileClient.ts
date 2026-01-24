@@ -47,7 +47,26 @@ export interface UserProfileResponse {
     description: string | null;
   } | null;
   owned_profile_pictures: ProfilePicture[];
+  display_name?: string;
 }
+
+export interface UpdateProfilePayload {
+  username?: string;
+  email?: string;
+  password?: string;
+  currentPassword: string;
+}
+
+export interface UpdateProfileResponse {
+  message: string;
+  user?: {
+    id: string;
+    username: string;
+    email: string;
+    displayName?: string;
+  };
+}
+
 
 export const profileClient = {
   getProfile: (userId: string) =>
@@ -72,4 +91,11 @@ export const profileClient = {
         body: JSON.stringify({ profilePictureId }),
       }
     ),
+  
+  updateMyProfile: (payload: UpdateProfilePayload) =>
+  apiFetch<UpdateProfileResponse>("/api/auth/profile/me", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  }),
+
 };

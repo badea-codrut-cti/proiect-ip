@@ -15,17 +15,17 @@ CREATE TABLE IF NOT EXISTS announcements (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     content TEXT NOT NULL,
-    created_by UUID REFERENCES users(id),
+    created_by TEXT REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     message TEXT NOT NULL,
     type notification_type NOT NULL,
-    exercise_id UUID REFERENCES exercises(id) ON DELETE SET NULL,
-    counter_edit_id UUID REFERENCES counter_edits(id) ON DELETE SET NULL,
+    exercise_id TEXT REFERENCES exercises(id) ON DELETE SET NULL,
+    counter_edit_id TEXT REFERENCES counter_edits(id) ON DELETE SET NULL,
     announcement_id UUID REFERENCES announcements(id) ON DELETE CASCADE,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

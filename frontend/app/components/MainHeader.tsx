@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import { Bell, User, LogOut, Trophy } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/ThemeToggle";
+import { NotificationsDropdown } from "~/components/NotificationsDropdown"; 
 import { useAuth } from "~/context/AuthContext";
 import {
   profileClient,
@@ -235,14 +236,8 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
 
           {isAuthenticated && uiProfile ? (
             <>
-              <button
-                type="button"
-                className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                aria-label="Notifications"
-              >
-                <Bell className="h-4 w-4 text-slate-600 dark:text-slate-200" />
-                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500" />
-              </button>
+              <NotificationsDropdown />
+
 
               <div className="relative" ref={profileMenuRef}>
                 <button
@@ -291,13 +286,13 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
                       </Link>
 
                       <Link
-                        to="/settings"
-                        className="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-100"
-                        onClick={() => setIsProfileOpen(false)}
-                      >
-                        <SettingsIcon />
-                        <span className="text-xs">Settings</span>
-                      </Link>
+                    to="/profile/edit"
+                    className="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-100"
+                    onClick={() => setIsProfileOpen(false)}
+                  >
+                    <SettingsIcon />
+                    <span className="text-xs">Edit Profile</span>
+                  </Link>
 
                       <button
                         type="button"
