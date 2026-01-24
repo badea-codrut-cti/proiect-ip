@@ -68,12 +68,11 @@ router.post("/signup", async (req: AuthRequest, res: Response): Promise<void> =>
       message: "User created successfully",
       user: {
         id: user.id,
-        username: user.username,
-        email: user.email
+        username: user.username
       },
       session: {
         id: session.id,
-	expires: new Date(Number(session.active_expires)).toISOString()
+        expires: new Date(Number(session.active_expires)).toISOString()
       }
     });
   } catch (error: any) {
@@ -99,12 +98,11 @@ router.post("/login", async (req: AuthRequest, res: Response): Promise<void> => 
       message: "Login successful",
       user: {
         id: user.id,
-        username: user.username,
-        email: user.email
+        username: user.username
       },
       session: {
         id: session.id,
-	expires: new Date(Number(session.active_expires)).toISOString()
+        expires: new Date(Number(session.active_expires)).toISOString()
       }
     });
   } catch (error: any) {

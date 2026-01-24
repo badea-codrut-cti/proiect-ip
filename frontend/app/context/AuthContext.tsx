@@ -12,7 +12,7 @@ import {
   clearAuthMode,
   type AuthMode,
 } from "~/utils/authMode";
-import type { UiUser } from "~/types/auth";
+import type { Role, UiUser } from "~/types/auth";
 
 interface AuthContextValue {
   mode: AuthMode;
@@ -42,11 +42,15 @@ function mapAuthUserToUi(user: AuthUser): UiUser {
       .slice(0, 2)
       .join("") || "NC";
 
+  let role: Role = "learner";
+  if (user.is_admin) role = "admin";
+  else if (user.is_contributor) role = "contributor";
+
   return {
     id: user.id,
     displayName: user.username,
     avatarInitials: initials,
-    role: "learner",
+    role: role,
     level: 5,
     xp: 650,
     nextLevelXp: 1000,
