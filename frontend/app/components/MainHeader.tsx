@@ -290,6 +290,18 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
                         <span className="text-xs">Profile</span>
                       </Link>
 
+
+                      {authUser?.role === "admin" && (
+                        <Link
+                          to="/admin"
+                          className="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-100"
+                          onClick={() => setIsProfileOpen(false)}
+                        >
+                          <User className="h-4 w-4" />
+                          <span className="text-xs">Admin Panel</span>
+                        </Link>
+                      )}
+
                       <Link
                         to="/settings"
                         className="flex items-center gap-2 rounded-md px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-100"
