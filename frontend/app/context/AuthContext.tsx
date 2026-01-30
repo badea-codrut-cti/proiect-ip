@@ -28,7 +28,7 @@ const MOCK_USER: UiUser = {
   id: "mock-user",
   displayName: "KanaLearner",
   avatarInitials: "KL",
-  role: "learner",
+  role: "admin",
   level: 5,
   xp: 650,
   nextLevelXp: 1000,
