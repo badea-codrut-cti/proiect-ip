@@ -33,6 +33,7 @@ export interface AuthUser {
   id: string;          // TEXT in DB
   username: string;
   email: string;
+  role?: "learner" | "contributor" | "admin";
   joined_at?: string;
 }
 
