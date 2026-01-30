@@ -46,7 +46,7 @@ function mapAuthUserToUi(user: AuthUser): UiUser {
     id: user.id,
     displayName: user.username,
     avatarInitials: initials,
-    role: "learner",
+    role: user.role ?? "learner",
     level: 5,
     xp: 650,
     nextLevelXp: 1000,
