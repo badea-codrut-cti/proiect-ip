@@ -11,7 +11,8 @@ router.get("/:userId", async (req, res) => {
     const pool = authService.getPool();
 
     const userResult = await pool.query(
-      `SELECT u.id, u.username, u.email, u.xp, u.gems, u.joined_at, u.current_profile_picture_id,
+      `SELECT u.id, u.username, u.xp, u.gems, u.joined_at, u.current_profile_picture_id,
+              u.is_admin, u.is_contributor,
               pp.name as current_profile_picture_name, pp.description as current_profile_picture_description
        FROM users u
        LEFT JOIN profile_pictures pp ON u.current_profile_picture_id = pp.id
@@ -52,9 +53,10 @@ router.get("/:userId", async (req, res) => {
     return res.status(200).json({
       id: user.id,
       username: user.username,
-      email: user.email,
-      xp: user.xp,
-      gems: user.gems,
+      xp: user.xp || 0,
+      gems: user.gems || 0,
+      is_admin: !!user.is_admin,
+      is_contributor: !!user.is_contributor,
       joined_at: user.joined_at,
       current_profile_picture: user.current_profile_picture_id ? {
         id: user.current_profile_picture_id,
