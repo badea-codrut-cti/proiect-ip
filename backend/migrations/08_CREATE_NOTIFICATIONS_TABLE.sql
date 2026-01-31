@@ -5,7 +5,8 @@ DO $$ BEGIN
         'counter_edit_approval', 
         'counter_edit_rejection', 
         'announcement', 
-        'feedback'
+        'feedback',
+        'badge_earned'
     );
 EXCEPTION
     WHEN duplicate_object THEN null;
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     exercise_id TEXT REFERENCES exercises(id) ON DELETE SET NULL,
     counter_edit_id TEXT REFERENCES counter_edits(id) ON DELETE SET NULL,
     announcement_id TEXT REFERENCES announcements(id) ON DELETE CASCADE,
+    badge_id TEXT REFERENCES badges(id) ON DELETE CASCADE,
     is_read BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
@@ -34,6 +36,7 @@ CREATE TABLE IF NOT EXISTS notifications (
         (type IN ('exercise_approval', 'exercise_rejection') AND exercise_id IS NOT NULL) OR
         (type IN ('counter_edit_approval', 'counter_edit_rejection') AND counter_edit_id IS NOT NULL) OR
         (type = 'announcement' AND announcement_id IS NOT NULL) OR
+        (type = 'badge_earned' AND badge_id IS NOT NULL) OR
         (type = 'feedback')
     )
 );
