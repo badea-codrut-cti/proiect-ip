@@ -1,33 +1,6 @@
 // app/utils/authClient.ts
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
-
-async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
-
-  const text = await res.text();
-  let data: any = null;
-
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = null;
-  }
-
-  if (!res.ok) {
-    const message = data?.error || `Request failed with ${res.status}`;
-    throw new Error(message);
-  }
-
-  return data as T;
-}
+import { apiFetch } from "./api";
 
 export interface AuthUser {
   id: string;          // TEXT in DB
@@ -38,20 +11,20 @@ export interface AuthUser {
 
 export const authClient = {
   signup: (username: string, email: string, password: string) =>
-  apiFetch<{
-    message: string;
-    user: AuthUser;
-    session: {
-      id: string;
-      expires: string;
-    };
-  }>("/api/auth/signup", {
-    method: "POST",
-    body: JSON.stringify({ username, email, password }),
-  }),
+    apiFetch<{
+      message: string;
+      user: AuthUser;
+      session: {
+        id: string;
+        expires: string;
+      };
+    }>("/api/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ username, email, password }),
+    }),
 
 
-   login: (identifier: string, password: string) =>
+  login: (identifier: string, password: string) =>
     apiFetch<{
       message: string;
       user: AuthUser;
@@ -62,7 +35,7 @@ export const authClient = {
     }>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({
-        identifier, 
+        identifier,
         password,
       }),
     }),

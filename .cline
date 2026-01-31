@@ -35,13 +35,17 @@ This is a full-stack application for learning Japanese counting and counters usi
 - All migrations use `CREATE TABLE IF NOT EXISTS` for idempotency
 
 ### Database Schema Highlights
-- **users**: User accounts with XP, FSRS parameters, and contributor/admin flags
-- **counters**: Japanese counter definitions
-- **card_state**: SRS state for user-counter pairs (FSRS algorithm)
-- **exercises**: Interactive exercises for practicing counters
-- **reviews**: Review history for spaced repetition
-- **counter_edits**: Edit proposals for counter documentation
-- **contributor_applications**: Applications for contributor status
+- **users**: Accounts with XP, FSRS parameters, gems, and profile picture references.
+- **counters**: Japanese counter definitions (e.g., age, long objects).
+- **card_state**: SRS state for user-counter pairs (FSRS stability, difficulty, due dates).
+- **exercises**: Interactive exercises with range-based number generation, approved by contributors.
+- **reviews**: History of exercise attempts, storing generated numbers, user answers, and SRS ratings.
+- **badges** & **user_badges**: Achievement system with definitions and user earnings.
+- **weekly_leaderboard**: Track user points per week for competitive rankings.
+- **notifications**: System alerts for badge earnings, exercise approvals, and announcements.
+- **contributor_applications**: Tracking user requests to become content contributors.
+- **counter_edits**: Proposed changes to counter documentation.
+- **announcements**: Global system messages for all users.
 
 ## Code Style Guidelines
 
