@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Input } from "~/components/ui/input";
 import { Link, useNavigate } from "react-router";
+import { MainHeader } from "~/components/MainHeader";
 import * as wanakana from "wanakana";
 import { apiFetch } from "~/utils/api";
 
@@ -34,6 +35,7 @@ export default function ReviewExercise() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<{ xp: number; correct: boolean } | null>(null);
+  const [feedbackAnim, setFeedbackAnim] = useState<string>("");
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -86,6 +88,7 @@ export default function ReviewExercise() {
       });
 
       setStats({ xp: result.xp_awarded, correct: result.correct });
+      setFeedbackAnim(result.correct ? "correct" : "wrong");
 
       if (result.correct) {
         setMessage("✅ Correct!");
@@ -101,6 +104,7 @@ export default function ReviewExercise() {
       setTimeout(() => {
         setMessage(null);
         setStats(null);
+        setFeedbackAnim("");
         setCurrentReview(null);
         setCurrentIndex((prev) => prev + 1);
       }, 2000);
@@ -111,16 +115,16 @@ export default function ReviewExercise() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-pulse text-slate-500">Loading reviews...</div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="animate-pulse text-slate-500 dark:text-slate-400">Loading reviews...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 space-y-4">
-        <div className="text-red-500 font-semibold">{error}</div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 space-y-4">
+        <div className="text-red-500 dark:text-red-400 font-semibold">{error}</div>
         <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-slate-900 text-white rounded-md"
@@ -133,8 +137,8 @@ export default function ReviewExercise() {
 
   if (totalReviews === 0 || currentIndex >= totalReviews) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 space-y-6">
-        <div className="text-2xl font-semibold text-slate-700">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-900 space-y-6">
+        <div className="text-2xl font-semibold text-slate-700 dark:text-slate-100">
           {totalReviews === 0 ? "No reviews due right now! ✨" : "🎉 Review session completed!"}
         </div>
         <button
@@ -149,8 +153,8 @@ export default function ReviewExercise() {
 
   if (!currentReview) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-pulse text-slate-500">Preparing next exercise...</div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
+        <div className="animate-pulse text-slate-500 dark:text-slate-400">Preparing next exercise...</div>
       </div>
     );
   }
@@ -159,13 +163,14 @@ export default function ReviewExercise() {
 
   // Removed wanakana.bind effect to simplify input handling and fix conflicts
 
+  const feedbackStyles = `
+    @keyframes shake { 10%, 90% { transform: translate3d(-1px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } 30%, 50%, 70% { transform: translate3d(-4px, 0, 0); } 40%, 60% { transform: translate3d(4px, 0, 0); } }
+    .shake { animation: shake .6s; }
+  `;
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      <header className="border-b bg-white">
-        <div className="mx-auto h-14 max-w-5xl flex items-center px-4 text-xs uppercase tracking-[0.25em] font-semibold">
-          nihongo count
-        </div>
-      </header>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex flex-col">
+      <MainHeader activeNav="reviews" />
 
       <main className="flex-1 flex items-center justify-center px-4">
         <div className="w-full max-w-3xl space-y-6">
@@ -180,20 +185,26 @@ export default function ReviewExercise() {
             <div className="text-xs mb-1 text-slate-500">
               Review {currentIndex + 1} of {totalReviews}
             </div>
-            <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
               <div
-                className="h-full bg-slate-900 transition-all duration-500"
+                className="h-full bg-slate-900 dark:bg-slate-100 transition-all duration-500"
                 style={{ width: `${progress}%` }}
               />
             </div>
           </div>
 
-          <div className="rounded-2xl border bg-white px-8 py-12 text-center shadow-sm">
+          <div className="rounded-2xl border bg-white dark:bg-slate-800 dark:border-slate-700 px-8 py-12 text-center shadow-sm relative overflow-hidden">
+            <style>{feedbackStyles}</style>
+            {stats && stats.correct && (
+              <div className="absolute -top-6 right-6 bg-amber-400 dark:bg-amber-500 text-slate-900 dark:text-slate-900 px-3 py-1 rounded-full font-bold animate-bounce shadow-md">
+                +{stats.xp} XP
+              </div>
+            )}
             <div className="mb-8 space-y-4">
-              <div className="text-4xl font-medium tracking-wide text-slate-800">
+              <div className="text-4xl font-medium tracking-wide text-slate-800 dark:text-slate-100">
                 {sentenceWithBlank}
               </div>
-              <div className="text-sm text-slate-400">
+              <div className="text-sm text-slate-400 dark:text-slate-300">
                 How do you say <span className="font-bold text-slate-600">{currentReview.generated_number}</span> using the correct counter?
               </div>
             </div>
@@ -210,16 +221,17 @@ export default function ReviewExercise() {
                 placeholder="Type in Romaji (e.g. 'sanbon')..."
                 value={answer}
                 onChange={(e) => setAnswer(wanakana.toKana(e.target.value, { IMEMode: true }))}
+                ref={inputRef}
                 className="text-center text-xl h-12 text-slate-900 bg-white border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700"
                 disabled={!!message}
               />
-              <div className="text-[0.65rem] uppercase tracking-wider text-slate-400 font-semibold">
+              <div className="text-[0.65rem] uppercase tracking-wider text-slate-400 dark:text-slate-300 font-semibold">
                 Press Enter to submit
               </div>
             </form>
 
             {message && (
-              <div className={`mt-6 text-sm font-bold ${stats?.correct ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <div className={`mt-6 text-sm font-bold ${feedbackAnim === 'correct' ? 'text-emerald-600 dark:text-emerald-300 transform scale-105 transition duration-300' : feedbackAnim === 'wrong' ? 'text-rose-600 dark:text-rose-400 shake' : (stats?.correct ? 'text-emerald-600 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-400')}`}>
                 {message}
                 {stats && (
                   <div className="mt-1 text-xs opacity-80">

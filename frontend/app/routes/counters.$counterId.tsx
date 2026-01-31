@@ -56,27 +56,37 @@ interface LoaderData {
   counters: CounterListItem[];
 }
 
-export async function loader({ params }: { params: { counterId?: string } }) {
+import type { LoaderFunctionArgs } from "react-router";
+
+export async function loader({ params, request }: LoaderFunctionArgs) {
   const { counterId } = params;
   if (!counterId) {
     throw new Response("Counter id missing", { status: 400 });
   }
 
-  const browserBase =
-    import.meta.env.VITE_API_URL || "http://localhost:5000";
-  const apiUrl = browserBase;
+  const browserApi = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
+  const ssrApi =
+    (typeof process !== "undefined" && process.env?.INTERNAL_API_URL) ||
+    browserApi;
+
+  const apiBase = typeof window === "undefined" ? ssrApi : browserApi;
+
+  const cookie = request.headers.get("cookie") || "";
+  const headers = cookie ? { cookie } : undefined;
+
+  const encodedId = encodeURIComponent(counterId);
 
   const [detailRes, listRes] = await Promise.all([
-    fetch(`${apiUrl}/api/counters/${encodeURIComponent(counterId)}`, {
-      credentials: "include",
-    }),
-    fetch(`${apiUrl}/api/counters`, {
-      credentials: "include",
-    }),
+    fetch(`${apiBase}/api/counters/${encodedId}`, { headers }),
+    fetch(`${apiBase}/api/counters`, { headers }),
   ]);
 
   if (!detailRes.ok) {
     throw new Response("Counter not found", { status: detailRes.status });
+  }
+  if (!listRes.ok) {
+    throw new Response("Failed to load counters", { status: listRes.status });
   }
 
   const detail = await detailRes.json();
@@ -95,6 +105,7 @@ export async function loader({ params }: { params: { counterId?: string } }) {
 
   return data;
 }
+
 
 function formatExerciseSentence(sentence: string): string {
   return sentence.replace(/<ans>/g, "____");

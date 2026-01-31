@@ -26,3 +26,5 @@ export const profileClient = {
       }
     ),
 };
+
+export type { UserProfileResponse };

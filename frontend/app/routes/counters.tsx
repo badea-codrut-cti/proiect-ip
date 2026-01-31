@@ -27,14 +27,22 @@ interface LoaderData {
   counters: CounterListItem[];
 }
 
-export async function loader() {
-  const browserBase =
+import type { LoaderFunctionArgs } from "react-router";
+
+export async function loader({ request }: LoaderFunctionArgs) {
+  const browserApi =
     import.meta.env.VITE_API_URL || "http://localhost:5000";
 
-  const apiUrl = browserBase;
+  const ssrApi =
+    (typeof process !== "undefined" && process.env?.INTERNAL_API_URL) ||
+    browserApi;
 
-  const res = await fetch(`${apiUrl}/api/counters`, {
-    credentials: "include",
+  const apiBase = typeof window === "undefined" ? ssrApi : browserApi;
+
+  const cookie = request.headers.get("cookie") || "";
+
+  const res = await fetch(`${apiBase}/api/counters`, {
+    headers: cookie ? { cookie } : undefined,
   });
 
   if (!res.ok) {
@@ -47,8 +55,10 @@ export async function loader() {
     ? raw
     : raw.counters ?? [];
 
-  return { counters } as LoaderData;
+  return { counters };
 }
+
+
 
 export default function CountersPage() {
   const { counters } = useLoaderData<typeof loader>();

@@ -5,7 +5,7 @@ import { counterToKana } from '../counter/index.js';
 import { authService, sessionMiddleware, AuthRequest } from '../middleware/auth.js';
 import { generatorParameters, fsrs, createEmptyCard, Rating } from 'ts-fsrs';
 import type { Card, FSRSParameters } from 'ts-fsrs';
-import { computeParameters, FSRSBindingReview, FSRSBindingItem } from '@open-spaced-repetition/binding';
+//import { computeParameters, FSRSBindingReview, FSRSBindingItem } from '@open-spaced-repetition/binding';
 import { calculateWeeklyPoints, getCurrentWeekStart } from '../services/leaderboard.js';
 import { checkBadgesOnReview } from '../services/badges.js';
 
@@ -229,11 +229,26 @@ router.post('/recalculate', sessionMiddleware, async (req: AuthRequest, res: Res
 
     const reviews = reviewRows.rows;
 
+    const b = await import("@open-spaced-repetition/binding").catch(() => null);
 
-    const groupedReviews = Object.values(reviews.reduce((acc: Record<string, FSRSBindingReview[]>, el) => {
-      (acc[el.counter_id] ??= []).push(new FSRSBindingReview(el.rating, acc[el.counter_id].length + 1));
-      return acc;
-    }, {} as Record<string, FSRSBindingReview[]>));
+    if (!b) {
+      return res.status(503).json({
+        error: "FSRS optimizer binding is not available in this environment.",
+      });
+    }
+
+    const { computeParameters, FSRSBindingReview, FSRSBindingItem } = b;
+
+
+
+const groupedReviews = Object.values(
+  reviews.reduce<Record<string, any[]>>((acc, el: any) => {
+    const key = String(el.counter_id);
+    (acc[key] ??= []).push(new FSRSBindingReview(el.rating, acc[key].length + 1));
+    return acc;
+  }, {})
+);
+
 
     const newParams = await computeParameters(groupedReviews.map(el => new FSRSBindingItem(el)));
 

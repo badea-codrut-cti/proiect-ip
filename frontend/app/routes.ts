@@ -7,6 +7,7 @@ export default [
   route("profile/:userId", "routes/profile.$userId.tsx"),
   route("counters", "routes/counters.tsx"),
   route("reviews", "routes/__review.tsx"),
+  route("leaderboard", "routes/leaderboard.tsx"),
 
   route("counters/:counterId", "routes/counters.$counterId.tsx"),
 

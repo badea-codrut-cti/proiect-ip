@@ -1,4 +1,3 @@
-// app/utils/authClient.ts
 
 import { apiFetch } from "./api";
 

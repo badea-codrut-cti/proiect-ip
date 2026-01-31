@@ -9,6 +9,7 @@ import {
 
 import type { Route } from "./+types/root";
 import "./app.css";
+import "./styles/animations.css";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "~/context/ThemeContext";
 
