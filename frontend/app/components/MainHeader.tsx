@@ -101,9 +101,13 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const adminMenuRef = useRef<HTMLDivElement | null>(null);
+  const notificationsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -112,6 +116,9 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
       }
       if (adminMenuRef.current && !adminMenuRef.current.contains(event.target as Node)) {
         setIsAdminOpen(false);
+      }
+      if (notificationsMenuRef.current && !notificationsMenuRef.current.contains(event.target as Node)) {
+        setIsNotificationsOpen(false);
       }
     }
 
@@ -187,6 +194,27 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
     setIsProfileOpen(false);
   };
 
+  const handleOpenNotifications = async () => {
+    // Toggle the notifications dropdown
+    if (isNotificationsOpen) {
+      setIsNotificationsOpen(false);
+      return;
+    }
+
+    setIsNotificationsOpen(true);
+    if (unreadCount > 0) {
+      try {
+        await apiFetch("/api/notifications/mark-read", { method: "POST" });
+        setUnreadCount(0);
+        // Refetch to update read status
+        const data = await apiFetch<any[]>("/api/notifications");
+        setNotifications(data);
+      } catch (error) {
+        console.error("Failed to mark notifications as read:", error);
+      }
+    }
+  };
+
   const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0);
 
   useEffect(() => {
@@ -204,6 +232,26 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
     fetchPendingCount();
     // Fetch every 5 minutes
     const interval = setInterval(fetchPendingCount, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, mode]);
+
+  useEffect(() => {
+    if (!isAuthenticated || mode === "mock") return;
+
+    const fetchNotifications = async () => {
+      try {
+        const data = await apiFetch<any[]>("/api/notifications");
+        setNotifications(data);
+        const unread = data.filter(n => !n.is_read).length;
+        setUnreadCount(unread);
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+      }
+    };
+
+    fetchNotifications();
+    // Poll every 30 seconds
+    const interval = setInterval(fetchNotifications, 30 * 1000);
     return () => clearInterval(interval);
   }, [isAuthenticated, mode]);
 
@@ -314,14 +362,51 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
 
           {isAuthenticated && uiProfile ? (
             <>
-              <button
-                type="button"
-                className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                aria-label="Notifications"
-              >
-                <Bell className="h-4 w-4 text-slate-600 dark:text-slate-200" />
-                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500" />
-              </button>
+              <div className="relative" ref={notificationsMenuRef}>
+                <button
+                  type="button"
+                  onClick={handleOpenNotifications}
+                  className="relative flex h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  aria-label="Notifications"
+                >
+                  <Bell className="h-4 w-4 text-slate-600 dark:text-slate-200" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-red-500 text-white text-[0.65rem] font-bold flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {isNotificationsOpen && (
+                  <div className="absolute right-0 mt-3 w-80 rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900 z-50 max-h-96 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">
+                        No notifications
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-100 dark:divide-slate-700">
+                        {notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            className={`p-3 text-sm ${
+                              !notification.is_read
+                                ? 'bg-blue-50 dark:bg-slate-800'
+                                : 'bg-white dark:bg-slate-900'
+                            }`}
+                          >
+                            <div className="font-medium text-slate-900 dark:text-slate-100">
+                              {notification.message}
+                            </div>
+                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                              {new Date(notification.created_at).toLocaleDateString()} {new Date(notification.created_at).toLocaleTimeString()}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="relative" ref={profileMenuRef}>
                 <button
