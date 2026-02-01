@@ -25,4 +25,12 @@ export const profileClient = {
         body: JSON.stringify({ profilePictureId }),
       }
     ),
+  updateProfile: (payload: { displayName?: string | null; email?: string | null; password?: string | null; currentPassword: string }) =>
+    apiFetch<{ message: string; user: { id: string; username: string; email: string; displayName: string } }>(
+      "/api/auth/profile/me",
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }
+    ),
 };
