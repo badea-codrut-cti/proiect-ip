@@ -15,6 +15,9 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fsrsLoading, setFsrsLoading] = useState(false);
+  const [fsrsMessage, setFsrsMessage] = useState<string | null>(null);
+  const [fsrsError, setFsrsError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,6 +43,21 @@ export default function SettingsPage() {
       setError(err instanceof Error ? err.message : "Update failed");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleFsrsRecalculate() {
+    setFsrsError(null);
+    setFsrsMessage(null);
+    setFsrsLoading(true);
+    try {
+      await profileClient.recalculateFsrsParameters();
+      setFsrsMessage("FSRS parameters recalculated successfully");
+      setTimeout(() => setFsrsMessage(null), 3000);
+    } catch (err) {
+      setFsrsError(err instanceof Error ? err.message : "Recalculation failed");
+    } finally {
+      setFsrsLoading(false);
     }
   }
 
@@ -79,6 +97,23 @@ export default function SettingsPage() {
             <button type="submit" disabled={loading} className="px-4 py-2 bg-slate-900 text-white rounded-md">{loading ? 'Saving...' : 'Save changes'}</button>
           </div>
         </form>
+
+        <section className="mt-6 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-2xl p-6">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">FSRS Parameters</h2>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">Recalculate FSRS parameters based on your review history. This may improve spacing algorithm accuracy.</p>
+          
+          {fsrsError && <div className="text-sm text-rose-600 mb-3">{fsrsError}</div>}
+          {fsrsMessage && <div className="text-sm text-emerald-600 mb-3">{fsrsMessage}</div>}
+          
+          <button
+            type="button"
+            onClick={handleFsrsRecalculate}
+            disabled={fsrsLoading}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-md"
+          >
+            {fsrsLoading ? 'Recalculating...' : 'Recalculate FSRS Parameters'}
+          </button>
+        </section>
       </main>
     </div>
   );
