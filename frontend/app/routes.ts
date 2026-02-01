@@ -13,5 +13,6 @@ export default [
   route("contributor/apply", "routes/contributor.apply.tsx"),
   route("admin/contributor-applications", "routes/admin.contributor-applications.tsx"),
   route("settings", "routes/settings.tsx"),
+  route("leaderboard", "routes/leaderboard.tsx"),
 
 ] satisfies RouteConfig;
