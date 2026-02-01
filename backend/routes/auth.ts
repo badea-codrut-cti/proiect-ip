@@ -181,6 +181,44 @@ router.post("/reset-password", async (req: AuthRequest, res: Response): Promise<
   }
 });
 
+// Recalculate FSRS parameters
+router.post("/fsrs/recalculate", async (req: AuthRequest, res: Response): Promise<void> => {
+  // Get user from session
+  const pool = authService.getPool();
+  const sessionId = req.cookies?.sessionId || req.headers.authorization?.replace('Bearer ', '');
+  
+  if (!sessionId) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+
+  try {
+    const session = await authService.validateSession(sessionId);
+    if (!session) {
+      res.status(401).json({ error: "Invalid session" });
+      return;
+    }
+
+    // Reset FSRS parameters for all reviews belonging to this user
+    await pool.query(
+      `UPDATE reviews SET 
+        difficulty = 2.5, 
+        stability = 0, 
+        reps = 0,
+        lapses = 0,
+        due = CURRENT_TIMESTAMP
+       WHERE user_id = $1`,
+      [session.user_id]
+    );
+
+    res.json({ 
+      message: "FSRS parameters recalculated successfully" 
+    });
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Failed to recalculate FSRS parameters" });
+  }
+});
+
 import profileUpdateRoutes from './profileUpdate.js';
 
 router.use('/profile', profileUpdateRoutes);
