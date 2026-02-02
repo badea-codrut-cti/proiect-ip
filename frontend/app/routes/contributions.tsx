@@ -191,7 +191,7 @@ export default function ContributionsPage() {
             <div className="space-y-2">
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight">My Contributions</h1>
               <p className="text-slate-500 dark:text-slate-400 max-w-2xl">
-                Vezi ce ai trimis (exerciții noi / editări) și statusul lor. Totul organizat, clar și ușor de urmărit.
+                Vezi ce ai trimis (exerciții noi / editări) și statusul lor.
               </p>
             </div>
 
