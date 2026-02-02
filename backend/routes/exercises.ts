@@ -37,7 +37,7 @@ const rejectionSchema = z.object({
 });
 
 /**
- * Helper: check if a column exists (safe across schemas).
+ * Helper: check if a column exists
  */
 async function hasColumn(table: string, column: string): Promise<boolean> {
   const r = await authService.getPool().query(
@@ -53,7 +53,7 @@ async function hasColumn(table: string, column: string): Promise<boolean> {
 }
 
 /**
- * Helper: quick schema flags (cached per process)
+ * Helper:quick schema flags 
  */
 let schemaCache:
   | null
@@ -86,7 +86,7 @@ async function getSchemaFlags() {
 
 // =====================
 // ADMIN: pending exercises
-// SAFE: daca exista status => ia doar status='pending'
+// daca exista status => ia doar status='pending'
 // altfel => comportament vechi (is_approved = false)
 // + sort: created_at daca exista, altfel id
 // =====================
@@ -136,7 +136,7 @@ router.get(
 
 // =====================
 // CONTRIBUTOR: propose exercise
-// SAFE: merge cu schema veche + noua
+//  merge cu schema veche + noua
 // - is_approved ramane FALSE
 // - daca exista status => set pending
 // =====================
@@ -179,7 +179,7 @@ router.post("/", sessionMiddleware, async (req: AuthRequest, res: Response) => {
 
     const flags = await getSchemaFlags();
 
-    // Insert de baza (compatibil)
+    // Insert de baza 
     const baseInsert = await authService.getPool().query(
       `
       INSERT INTO exercises
@@ -192,7 +192,7 @@ router.post("/", sessionMiddleware, async (req: AuthRequest, res: Response) => {
 
     const exercise = baseInsert.rows[0];
 
-    // daca exista status: seteaza pending (desi default e pending, but safe)
+    // daca exista status: seteaza pending 
     if (flags.exercises_status) {
       await authService
         .getPool()
@@ -211,8 +211,6 @@ router.post("/", sessionMiddleware, async (req: AuthRequest, res: Response) => {
 
 // =====================
 // ADMIN: approve exercise
-// SAFE: pastreaza flow-ul vechi (is_approved = TRUE)
-// + daca exista coloanele noi => status=approved, reviewed_at=NOW, rejection_reason=NULL
 // =====================
 router.post(
   "/:id/approve",
@@ -227,7 +225,7 @@ router.post(
 
       await authService.getPool().query("BEGIN");
 
-      // gasim exercitiul pending in functie de schema
+      
       const pendingCond = flags.exercises_status
         ? `e.status='pending'`
         : `e.is_approved = FALSE`;
@@ -252,7 +250,7 @@ router.post(
 
       const exercise = exerciseResult.rows[0];
 
-      // compat vechi
+      
       await authService.getPool().query(
         `
         UPDATE exercises
@@ -263,7 +261,7 @@ router.post(
         [adminId, exerciseId]
       );
 
-      // extensii noi
+      
       if (flags.exercises_status) {
         await authService
           .getPool()
@@ -317,8 +315,8 @@ router.post(
 // =====================
 // ADMIN: reject exercise
 // IMPORTANT:
-// - daca exista status/reviewed_at/rejection_reason => SOFT REJECT (NU delete)
-// - daca NU exista => fallback: DELETE (altfel nu ai unde salva motivul + ramane pending forever)
+// - daca exista status/reviewed_at/rejection_reason => SOFT REJECT 
+// - daca NU exista => fallback: DELETE
 // =====================
 router.post(
   "/:id/reject",
@@ -366,7 +364,7 @@ router.post(
 
       const exercise = exerciseResult.rows[0];
 
-      // daca ai schema noua, soft reject
+      
       if (flags.exercises_status && flags.exercises_rejection_reason) {
         await authService.getPool().query(
           `
@@ -390,13 +388,13 @@ router.post(
           [reason, exerciseId]
         );
       } else {
-        // fallback pt colegi: delete (nu exista rejection_reason unde sa salvezi)
+        
         await authService
           .getPool()
           .query(`DELETE FROM exercises WHERE id = $1`, [exerciseId]);
       }
 
-      // notificare catre contributor (asta e utila in ambele cazuri)
+      // notificare catre contributor 
       if (exercise.created_by) {
         await authService.getPool().query(
           `
