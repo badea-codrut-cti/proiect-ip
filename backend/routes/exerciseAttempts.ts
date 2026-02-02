@@ -227,8 +227,11 @@ router.post('/recalculate', sessionMiddleware, async (req: AuthRequest, res: Res
 			WHERE user_id = $1
 		`, [req.user.id]);
 
-    const reviews = reviewRows.rows;
+    const reviews = reviewRows.rows.filter((el: any) => el.rating != null);
 
+    if (reviews.length === 0) {
+      return res.status(200).json({ message: 'No reviews to recalculate' });
+    }
 
     const groupedReviews = Object.values(reviews.reduce((acc: Record<string, FSRSBindingReview[]>, el) => {
       (acc[el.counter_id] ??= []).push(new FSRSBindingReview(el.rating, acc[el.counter_id].length + 1));
@@ -243,10 +246,10 @@ router.post('/recalculate', sessionMiddleware, async (req: AuthRequest, res: Res
 			WHERE id = $2
 		`, [newParams, req.user.id]);
 
-    res.status(200).end();
+    res.status(200).json({ message: 'FSRS parameters recalculated' });
   } catch (e) {
     console.error(e);
-    res.status(500).end();
+    res.status(500).json({ error: 'Failed to recalculate' });
   }
 
 });
