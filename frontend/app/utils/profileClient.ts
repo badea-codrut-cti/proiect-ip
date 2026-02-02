@@ -6,6 +6,12 @@ export const profileClient = {
   getProfile: (userId: string) =>
     apiFetch<UserProfileResponse>(`/api/profiles/${encodeURIComponent(userId)}`),
 
+  updateProfile: (payload: any) =>
+    apiFetch<{ message: string }>("/api/auth/profile/me", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+
   getAvailableProfilePictures: () =>
     apiFetch<{ profile_pictures: ProfilePicture[] }>(
       "/api/profiles/profile-pictures/available"
@@ -25,4 +31,14 @@ export const profileClient = {
         body: JSON.stringify({ profilePictureId }),
       }
     ),
+  updateProfile: (payload: { displayName?: string | null; email?: string | null; password?: string | null; currentPassword: string }) =>
+    apiFetch<{ message: string; user: { id: string; username: string; email: string; displayName: string } }>(
+      "/api/auth/profile/me",
+      {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      }
+    ),
 };
+export type { UserProfileResponse };
+

@@ -379,6 +379,28 @@ export default function CounterDetailPage() {
                     There are no approved example exercises for this counter yet.
                   </p>
                 )}
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button
+                  className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
+                  variant="default"
+                  type="button"
+                  disabled={learningLoading}
+                  onClick={handleStartLearning}
+                >
+                  {learningLoading ? "Starting..." : "Start Learning"}
+                </Button>
+
+                <Button
+                  className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
+                  variant={mastered ? "outline" : "secondary"}
+                  type="button"
+                  disabled={mastered}
+                  onClick={handleMarkMastered}
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  {mastered ? "Mastered" : "Mark as Mastered"}
+                </Button>
 
                 {exercises.map((ex) => (
                   <Card
