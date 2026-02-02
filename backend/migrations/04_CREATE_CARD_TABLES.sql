@@ -1,3 +1,9 @@
+DO $$ BEGIN
+  CREATE TYPE application_status AS ENUM ('pending', 'approved', 'rejected');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS counters (
     id TEXT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -71,3 +77,36 @@ CREATE INDEX idx_reviews_user_id ON reviews(user_id);
 CREATE INDEX idx_reviews_counter_id ON reviews(counter_id);
 CREATE INDEX idx_reviews_reviewed_at ON reviews(reviewed_at);
 CREATE INDEX idx_reviews_user_counter ON reviews(user_id, counter_id);
+
+
+ALTER TABLE counter_edits
+  ADD COLUMN IF NOT EXISTS status application_status NOT NULL DEFAULT 'pending';
+
+ALTER TABLE counter_edits
+  ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP;
+
+ALTER TABLE counter_edits
+  ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+
+ALTER TABLE exercises
+  ADD COLUMN IF NOT EXISTS status application_status NOT NULL DEFAULT 'pending';
+
+ALTER TABLE exercises
+  ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP;
+
+ALTER TABLE exercises
+  ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+
+ALTER TABLE exercises
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+CREATE INDEX IF NOT EXISTS idx_exercises_created_at ON exercises(created_at DESC);
+
+UPDATE counter_edits
+SET status = 'approved'
+WHERE is_approved = TRUE AND status = 'pending';
+
+UPDATE exercises
+SET status = 'approved'
+WHERE is_approved = TRUE AND status = 'pending';
+
