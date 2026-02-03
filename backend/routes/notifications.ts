@@ -10,14 +10,26 @@ router.get("/", sessionMiddleware, async (req: AuthRequest, res: Response) => {
 
   try {
     const result = await authService.getPool().query(
-      `SELECT id, message, type, exercise_id, counter_edit_id, announcement_id, is_read, created_at
-       FROM notifications
-       WHERE user_id = $1
-       ORDER BY created_at DESC
+      `SELECT 
+         n.id, 
+         n.message, 
+         n.type, 
+         n.exercise_id, 
+         n.counter_edit_id, 
+         n.announcement_id, 
+         n.badge_id, 
+         n.contributor_application_id, 
+         n.is_read, 
+         n.created_at,
+         b.code as badge_code
+       FROM notifications n
+       LEFT JOIN badges b ON n.badge_id = b.id
+       WHERE n.user_id = $1
+       ORDER BY n.created_at DESC
        LIMIT 5`,
       [req.user.id]
     );
-    
+
     return res.status(200).json(result.rows);
   } catch (error) {
     console.error("Error fetching notifications:", error);
@@ -37,7 +49,7 @@ router.post("/mark-read", sessionMiddleware, async (req: AuthRequest, res: Respo
        WHERE user_id = $1 AND is_read = FALSE`,
       [req.user.id]
     );
-    
+
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error("Error marking notifications as read:", error);
