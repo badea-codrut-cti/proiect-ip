@@ -275,10 +275,7 @@ export default function CounterDetailPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 flex flex-col">
-      <MainHeader
-        activeNav="counters"
-        backLink={{ to: "/counters", label: "Back to Counters Library" }}
-      />
+      <MainHeader activeNav="counters" />
 
       <main className="flex-1 bg-slate-50 dark:bg-slate-950">
         {loading ? (

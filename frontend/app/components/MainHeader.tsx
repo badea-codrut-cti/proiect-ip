@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Bell, User, LogOut, Trophy, ChevronDown, ShieldCheck, FileText, LayoutDashboard, BookOpen } from "lucide-react";
+import { Bell, User, LogOut, Trophy, ChevronDown, ShieldCheck, FileText, LayoutDashboard, BookOpen, ClipboardCheck, Layers, Award, Users } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { useAuth } from "~/context/AuthContext";
@@ -17,35 +17,33 @@ interface NavItem {
   id: string;
   label: string;
   to: string;
+  icon?: React.ComponentType<{ className?: string }>;
   roles?: Role[];
 }
 
 const navItems: NavItem[] = [
-  { id: "home", label: "HOME", to: "/" },
-  { id: "reviews", label: "REVIEWS", to: "/reviews" },
-  { id: "counters", label: "COUNTERS", to: "/counters" },
-  { id: "badges", label: "BADGES", to: "/badges" },
-  { id: "leaderboard", label: "LEADERBOARD", to: "/leaderboard" },
+  { id: "reviews", label: "REVIEWS", to: "/reviews", icon: ClipboardCheck },
+  { id: "counters", label: "COUNTERS", to: "/counters", icon: Layers },
+  { id: "badges", label: "BADGES", to: "/badges", icon: Award },
+  { id: "leaderboard", label: "LEADERBOARD", to: "/leaderboard", icon: Trophy },
   {
     id: "contrib",
     label: "CONTRIBUTIONS",
     to: "/contributions",
+    icon: FileText,
     roles: ["contributor", "admin"],
   },
   {
     id: "apply-contrib",
     label: "Become Contributor",
     to: "/contributor/apply",
+    icon: Users,
     roles: ["learner"],
   },
 ];
 
 interface MainHeaderProps {
   activeNav?: string;
-  backLink?: {
-    to: string;
-    label: string;
-  };
 }
 
 interface UiProfile {
@@ -89,7 +87,7 @@ function mapMockFromUiUser(user: UiUser): UiProfile {
 }
 
 
-export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
+export function MainHeader({ activeNav }: MainHeaderProps) {
   const {
     user: authUser,
     mode,
@@ -262,29 +260,18 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
   return (
     <header className="border-b bg-white dark:bg-slate-900 dark:border-slate-800">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-        <div className="flex items-center gap-4">
-          {backLink && (
-            <Link
-              to={backLink.to}
-              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-            >
-              <span className="text-lg">←</span>
-              <span>{backLink.label}</span>
-            </Link>
-          )}
-
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-gradient-to-tr from-sky-400 via-indigo-500 to-pink-400" />
-            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-900 dark:text-slate-100">
-              nihongo count
-            </span>
-          </div>
-        </div>
+        <Link to="/" className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-gradient-to-tr from-sky-400 via-indigo-500 to-pink-400" />
+          <span className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-900 dark:text-slate-100 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+            nihongo count
+          </span>
+        </Link>
 
         {isAuthenticated && (
           <nav className="hidden md:flex items-center gap-6 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
             {visibleNavItems.map((item) => {
               const isActive = item.id === activeNav;
+              const Icon = item.icon;
               return item.id === "counters" ? (
                 <WalkthroughStep
                   key={item.id}
@@ -300,12 +287,13 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
                       }
                     }}
                     className={
-                      "transition-colors" +
+                      "inline-flex items-center gap-1 transition-colors" +
                       (isActive
                         ? " text-slate-900 dark:text-slate-100"
                         : " hover:text-slate-900 dark:hover:text-slate-100")
                     }
                   >
+                    {Icon && <Icon className="h-3 w-3" />}
                     {item.label}
                   </Link>
                 </WalkthroughStep>
@@ -314,18 +302,14 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
                   key={item.id}
                   to={item.to}
                   className={
-                    "transition-colors" +
+                    "inline-flex items-center gap-1 transition-colors" +
                     (isActive
                       ? " text-slate-900 dark:text-slate-100"
                       : " hover:text-slate-900 dark:hover:text-slate-100")
                   }
                 >
-                  {item.id === "leaderboard" ? (
-                    <span className="inline-flex items-center gap-1">
-                      <Trophy className="h-3 w-3" />
-                      {item.label}
-                    </span>
-                  ) : item.id === "reviews" ? (
+                  {Icon && <Icon className="h-3 w-3" />}
+                  {item.id === "reviews" ? (
                     <span className="inline-flex items-center gap-2">
                       {item.label}
                       {pendingReviewsCount > 0 && (
