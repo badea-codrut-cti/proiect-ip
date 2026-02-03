@@ -15,8 +15,6 @@ import { apiFetch } from "~/utils/api";
 import { useWalkthrough } from "~/context/WalkthroughContext";
 
 import {
-  ChevronRight,
-  CheckCircle2,
   Info,
   Edit,
   Plus,
@@ -132,72 +130,21 @@ export default function CounterDetailPage() {
   });
   const [isSubmittingExercise, setIsSubmittingExercise] = useState(false);
 
-  const { subtitle, markdownBody } = useMemo(() => {
+  const { markdownBody } = useMemo(() => {
     if (!counter.documentation || !counter.documentation.trim()) {
       return {
-        subtitle: "Counter",
         markdownBody:
           "No description is available yet for this counter. It will be documented soon.",
       };
     }
 
     const lines = counter.documentation.split(/\r?\n/);
-    const first = lines[0] || "Counter";
     const rest = lines.slice(1).join("\n").trim();
 
     return {
-      subtitle: first,
       markdownBody: rest || counter.documentation,
     };
   }, [counter.documentation]);
-
-  const index = counters.findIndex((c) => c.id === counter.id);
-  const total = counters.length || 1;
-  const currentPosition = index >= 0 ? index + 1 : 1;
-  const hasNext = index >= 0 && index < counters.length - 1;
-  const nextCounter = hasNext ? counters[index + 1] : null;
-
-  const progressPercent = Math.round((currentPosition / total) * 100);
-
-  const currentExampleLabel =
-    exercises.length > 0 ? formatExerciseSentence(exercises[0].sentence) : "";
-  const [mastered, setMastered] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem("masteredCounters");
-    if (!raw) {
-      setMastered(false);
-      return;
-    }
-    try {
-      const arr = JSON.parse(raw) as string[];
-      setMastered(arr.includes(counter.id));
-    } catch {
-      setMastered(false);
-    }
-  }, [counter.id]);
-
-  const handleMarkMastered = () => {
-    setMastered(true);
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem("masteredCounters");
-    let arr: string[] = [];
-    if (raw) {
-      try {
-        arr = JSON.parse(raw);
-      } catch {
-        arr = [];
-      }
-    }
-    if (!arr.includes(counter.id)) {
-      arr.push(counter.id);
-      window.localStorage.setItem(
-        "masteredCounters",
-        JSON.stringify(arr)
-      );
-    }
-  };
 
   const navigate = useNavigate();
   const [learningLoading, setLearningLoading] = useState(false);
@@ -291,13 +238,6 @@ export default function CounterDetailPage() {
                 <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
                   {counter.name}
                 </h1>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {subtitle}
-                </p>
-                <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                  Progress: {currentPosition}/{total} • Learning:{" "}
-                  {currentExampleLabel || "N/A"}
-                </p>
               </section>
 
               <section>
@@ -434,30 +374,7 @@ export default function CounterDetailPage() {
                     </Button>
                   </WalkthroughStep>
 
-                  <Button
-                    className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
-                    variant={mastered ? "outline" : "secondary"}
-                    type="button"
-                    disabled={mastered}
-                    onClick={handleMarkMastered}
-                  >
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                    {mastered ? "Mastered" : "Mark as Mastered"}
-                  </Button>
 
-                  {hasNext && nextCounter && (
-                    <Button
-                      className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
-                      variant="outline"
-                      type="button"
-                      asChild
-                    >
-                      <Link to={`/counters/${nextCounter.id}`}>
-                        <span>Next Counter</span>
-                        <ChevronRight className="ml-2 h-4 w-4" />
-                      </Link>
-                    </Button>
-                  )}
 
                   {isContributor && (
                     <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
@@ -485,23 +402,7 @@ export default function CounterDetailPage() {
                     </div>
                   )}
 
-                  <div className="mt-4 space-y-1">
-                    <p className="text-[0.7rem] font-medium uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">
-                      Current Progress
-                    </p>
-                    <p className="text-xs text-slate-600 dark:text-slate-300">
-                      {currentPosition} / {total} learned
-                    </p>
-                    <div className="mt-1 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-800">
-                      <div
-                        className="h-1.5 rounded-full bg-slate-900 dark:bg-slate-100"
-                        style={{ width: `${progressPercent}%` }}
-                      />
-                    </div>
-                    <div className="mt-1 text-right text-[0.7rem] text-slate-400 dark:text-slate-500">
-                      {progressPercent}%
-                    </div>
-                  </div>
+
                 </CardContent>
               </Card>
 

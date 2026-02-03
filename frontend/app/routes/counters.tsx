@@ -23,6 +23,7 @@ export function meta() {
 interface CounterListItem {
   id: string;
   name: string;
+  documentation: string | null;
 }
 
 interface LoaderData {
@@ -130,7 +131,7 @@ export default function CountersPage() {
                               {counter.name}
                             </p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">
-                              ID: {counter.id}
+                              {counter.documentation?.split(/\r?\n/)[0] || "No description available"}
                             </p>
                           </div>
                         </div>

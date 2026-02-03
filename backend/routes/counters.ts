@@ -6,7 +6,7 @@ const router = express.Router();
 router.get("/", async (req, res) => {
   try {
     const result = await authService.getPool().query(
-      'SELECT id, name FROM counters ORDER BY name ASC');
+      'SELECT id, name, documentation FROM counters ORDER BY name ASC');
 
     return res.status(200).json({
       counters: result.rows,
