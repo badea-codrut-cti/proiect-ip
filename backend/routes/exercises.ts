@@ -124,28 +124,35 @@ router.post(
     const exerciseId = req.params.id;
     const adminId = req.user.id;
 
-    try {
-      await authService.getPool().query("BEGIN");
+    const pool = authService.getPool();
+    const client = await pool.connect();
 
-      const exerciseResult = await authService.getPool().query(
-        `SELECT e.*, u.email as created_by_email, u.username as created_by_username, c.name as counter_name
+    try {
+      await client.query("BEGIN");
+
+      const exerciseResult = await client.query(
+        `SELECT
+            e.*,
+            u.email as created_by_email,
+            u.username as created_by_username,
+            c.name as counter_name
          FROM exercises e
          LEFT JOIN users u ON e.created_by = u.id
          JOIN counters c ON e.counter_id = c.id
          WHERE e.id = $1 AND e.status = 'pending'
-         FOR UPDATE`,
+         FOR UPDATE OF e`,
         [exerciseId]
       );
 
       if (exerciseResult.rows.length === 0) {
-        await authService.getPool().query("ROLLBACK");
+        await client.query("ROLLBACK");
         return res.status(404).json({ error: "Exercise not found or not pending" });
       }
 
       const exercise = exerciseResult.rows[0];
 
-      await authService.getPool().query(
-        `UPDATE exercises 
+      await client.query(
+        `UPDATE exercises
          SET status = 'approved',
              approved_by = $1,
              reviewed_at = CURRENT_TIMESTAMP,
@@ -156,7 +163,7 @@ router.post(
       );
 
       if (exercise.created_by) {
-        await authService.getPool().query(
+        await client.query(
           `INSERT INTO notifications (user_id, message, type, exercise_id)
            VALUES ($1, $2, $3, $4)`,
           [
@@ -168,19 +175,18 @@ router.post(
         );
       }
 
-      await authService.getPool().query("COMMIT");
-
-      return res.status(200).json({
-        success: true,
-        message: "Exercise approved successfully",
-      });
+      await client.query("COMMIT");
+      return res.status(200).json({ success: true, message: "Exercise approved successfully" });
     } catch (error) {
-      await authService.getPool().query("ROLLBACK").catch(() => {});
+      await client.query("ROLLBACK").catch(() => {});
       console.error("Error approving exercise:", error);
       return res.status(500).json({ error: "Failed to approve exercise" });
+    } finally {
+      client.release();
     }
   }
 );
+
 
 router.post(
   "/:id/reject",
@@ -197,28 +203,35 @@ router.post(
 
     const { reason } = validationResult.data;
 
-    try {
-      await authService.getPool().query("BEGIN");
+    const pool = authService.getPool();
+    const client = await pool.connect();
 
-      const exerciseResult = await authService.getPool().query(
-        `SELECT e.*, u.email as created_by_email, u.username as created_by_username, c.name as counter_name
+    try {
+      await client.query("BEGIN");
+
+      const exerciseResult = await client.query(
+        `SELECT
+            e.*,
+            u.email as created_by_email,
+            u.username as created_by_username,
+            c.name as counter_name
          FROM exercises e
          LEFT JOIN users u ON e.created_by = u.id
          JOIN counters c ON e.counter_id = c.id
          WHERE e.id = $1 AND e.status = 'pending'
-         FOR UPDATE`,
+         FOR UPDATE OF e`,
         [exerciseId]
       );
 
       if (exerciseResult.rows.length === 0) {
-        await authService.getPool().query("ROLLBACK");
+        await client.query("ROLLBACK");
         return res.status(404).json({ error: "Exercise not found or not pending" });
       }
 
       const exercise = exerciseResult.rows[0];
 
-      await authService.getPool().query(
-        `UPDATE exercises 
+      await client.query(
+        `UPDATE exercises
          SET status = 'rejected',
              approved_by = $1,
              reviewed_at = CURRENT_TIMESTAMP,
@@ -229,30 +242,29 @@ router.post(
       );
 
       if (exercise.created_by) {
-        await authService.getPool().query(
+        await client.query(
           `INSERT INTO notifications (user_id, message, type, exercise_id)
            VALUES ($1, $2, $3, $4)`,
           [
             exercise.created_by,
-            `Your exercise proposal for ${exercise.counter_name} has been rejected. Reason: ${reason || "No reason provided"}`,
+            `Your exercise proposal for ${exercise.counter_name} has been rejected. Reason: ${reason}`,
             "exercise_rejection",
             exerciseId,
           ]
         );
       }
 
-      await authService.getPool().query("COMMIT");
-
-      return res.status(200).json({
-        success: true,
-        message: "Exercise rejected successfully",
-      });
+      await client.query("COMMIT");
+      return res.status(200).json({ success: true, message: "Exercise rejected successfully" });
     } catch (error) {
-      await authService.getPool().query("ROLLBACK").catch(() => {});
+      await client.query("ROLLBACK").catch(() => {});
       console.error("Error rejecting exercise:", error);
       return res.status(500).json({ error: "Failed to reject exercise" });
+    } finally {
+      client.release();
     }
   }
 );
+
 
 export default router;
