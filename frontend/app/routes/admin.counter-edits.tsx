@@ -19,10 +19,8 @@ interface PendingEdit {
   id: string;
   counter_id: string;
 
-  // PROPOSED
   content: string;
 
-  // CURRENT (optional, from counters.documentation)
   current_content?: string | null;
 
   status?: "pending" | "approved" | "rejected";
