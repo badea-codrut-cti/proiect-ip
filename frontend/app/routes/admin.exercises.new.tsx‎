@@ -1,0 +1,291 @@
+import { useEffect, useMemo, useState } from "react";
+import { MainHeader } from "~/components/MainHeader";
+import { useAuth } from "~/context/AuthContext";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "~/components/ui/card";
+import { Button } from "~/components/ui/button";
+import { Textarea } from "~/components/ui/textarea";
+import { AdminToast } from "~/components/admin/AdminToast";
+import { FinalBossPopout } from "~/components/admin/FinalBossPopout";
+import {
+  adminReviewClient,
+  type PendingSentenceNew,
+} from "~/utils/adminReviewClient";
+
+function safeDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+export default function AdminNewSentences() {
+  const { user, loading: authLoading } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  const [items, setItems] = useState<PendingSentenceNew[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
+  const [leaving, setLeaving] = useState<
+    Record<string, "approve" | "reject" | null>
+  >({});
+
+  const [toast, setToast] = useState<{
+    open: boolean;
+    type: "success" | "error" | "info";
+    title: string;
+    subtitle?: string;
+  }>({ open: false, type: "info", title: "" });
+
+  const [finalPop, setFinalPop] = useState(false);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    setLoading(true);
+    adminReviewClient
+      .getPendingNewSentences()
+      .then((res) => setItems(res.items ?? []))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false));
+  }, [isAdmin]);
+
+  const pendingCount = items.length;
+  const headerBadge = useMemo(() => `${pendingCount} PENDING`, [pendingCount]);
+
+  const handleApprove = async (id: string) => {
+    setProcessingId(id);
+    setLeaving((p) => ({ ...p, [id]: "approve" }));
+
+    try {
+      await adminReviewClient.approveNewSentence(id);
+
+      setToast({
+        open: true,
+        type: "success",
+        title: "Approved",
+        subtitle: "Sentence approved",
+      });
+
+      setTimeout(() => {
+        const next = items.filter((x) => x.id !== id);
+        setItems(next);
+        setLeaving((p) => ({ ...p, [id]: null }));
+        if (next.length === 0) setFinalPop(true);
+      }, 220);
+    } catch (err) {
+      setLeaving((p) => ({ ...p, [id]: null }));
+      alert(err instanceof Error ? err.message : "Approve failed");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    const reason = (rejectReason[id] ?? "").trim();
+    if (!reason) {
+      alert("Please provide a rejection reason");
+      return;
+    }
+
+    setProcessingId(id);
+    setLeaving((p) => ({ ...p, [id]: "reject" }));
+
+    try {
+      await adminReviewClient.rejectNewSentence(id, reason);
+
+      setToast({
+        open: true,
+        type: "error",
+        title: "Rejected",
+        subtitle: "Reason saved",
+      });
+
+      setTimeout(() => {
+        const next = items.filter((x) => x.id !== id);
+        setItems(next);
+        setLeaving((p) => ({ ...p, [id]: null }));
+        if (next.length === 0) setFinalPop(true);
+      }, 220);
+    } catch (err) {
+      setLeaving((p) => ({ ...p, [id]: null }));
+      alert(err instanceof Error ? err.message : "Reject failed");
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const formatSentence = (s: string | null | undefined) =>
+    (s ?? "").replace(/<ans>/g, "____");
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="text-slate-500">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+        <MainHeader />
+        <main className="p-8 text-center text-slate-500">Access denied.</main>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+      <MainHeader activeNav="admin" />
+
+      <main className="max-w-5xl mx-auto px-4 py-12">
+        <div className="flex justify-between items-end mb-8">
+          <div>
+            <h1 className="text-3xl font-bold mb-2">New Sentences</h1>
+            <p className="text-slate-500 dark:text-slate-400">
+              Approve or reject newly submitted sentences.
+            </p>
+          </div>
+
+          <div className="text-xs font-mono bg-slate-200 dark:bg-slate-800 px-3 py-1 rounded-full text-slate-700 dark:text-slate-300">
+            {headerBadge}
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="text-slate-500">Loading...</div>
+        ) : pendingCount === 0 ? (
+          <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 border-dashed">
+            <div className="text-4xl mb-4">🎉</div>
+            <h2 className="text-lg font-semibold">All caught up!</h2>
+            <p className="text-slate-500 dark:text-slate-400">
+              No pending new sentences.
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-8">
+            {items.map((it) => {
+              const leave = leaving[it.id];
+
+              // NEW schema: created_at exists (and backend sorts by it)
+              const created = safeDate(it.created_at ?? null);
+              const dateStr = created ? created.toLocaleDateString() : "—";
+              const timeStr = created
+                ? created.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "—";
+
+              return (
+                <Card
+                  key={it.id}
+                  className={
+                    "transition-all duration-200 " +
+                    (leave === "approve"
+                      ? "opacity-0 translate-x-6"
+                      : leave === "reject"
+                      ? "opacity-0 -translate-x-6"
+                      : "opacity-100 translate-x-0")
+                  }
+                >
+                  <CardHeader className="flex flex-row items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <CardTitle className="truncate">
+                        Counter: {it.counter_name || it.counter_id}
+                      </CardTitle>
+                      <CardDescription>
+                        {it.created_by_username ? `By ${it.created_by_username}` : "Submitted"}
+                      </CardDescription>
+
+                      {/* Optional: show previous rejection reason if backend sends it (for same item) */}
+                      {it.rejection_reason ? (
+                        <div className="mt-2 text-[11px] text-rose-500">
+                          Last rejection reason: {it.rejection_reason}
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="text-right text-xs text-slate-400 whitespace-nowrap">
+                      <div>{dateStr}</div>
+                      <div className="mt-1">{timeStr}</div>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent>
+                    <div className="grid md:grid-cols-3 gap-6">
+                      <div className="md:col-span-2 space-y-4">
+                        <div>
+                          <div className="text-xs font-bold mb-2 text-slate-500 dark:text-slate-400">
+                            Proposed sentence
+                          </div>
+                          <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 whitespace-pre-wrap">
+                            {formatSentence(it.sentence)}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <Button
+                          className="w-full"
+                          onClick={() => handleApprove(it.id)}
+                          disabled={processingId !== null && processingId !== it.id}
+                        >
+                          {processingId === it.id ? "Processing..." : "Approve"}
+                        </Button>
+
+                        <Textarea
+                          placeholder="Reason for rejection (required)..."
+                          value={rejectReason[it.id] || ""}
+                          onChange={(e) =>
+                            setRejectReason((p) => ({
+                              ...p,
+                              [it.id]: e.target.value,
+                            }))
+                          }
+                          className="min-h-[96px]"
+                          disabled={processingId !== null && processingId !== it.id}
+                        />
+
+                        <Button
+                          variant="destructive"
+                          className="w-full"
+                          onClick={() => handleReject(it.id)}
+                          disabled={processingId !== null && processingId !== it.id}
+                        >
+                          {processingId === it.id ? "Processing..." : "Reject"}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
+        <AdminToast
+          open={toast.open}
+          type={toast.type}
+          title={toast.title}
+          subtitle={toast.subtitle}
+          onClose={() => setToast((t) => ({ ...t, open: false }))}
+        />
+
+        <FinalBossPopout
+          open={finalPop}
+          onClose={() => setFinalPop(false)}
+          title="New sentences cleared!"
+          subtitle="That queue is done."
+        />
+      </main>
+    </div>
+  );
+}
