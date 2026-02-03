@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Bell, User, LogOut, Trophy, ChevronDown, ShieldCheck, FileText, LayoutDashboard } from "lucide-react";
+import { Bell, User, LogOut, Trophy, ChevronDown, ShieldCheck, FileText, LayoutDashboard, BookOpen } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { useAuth } from "~/context/AuthContext";
@@ -101,6 +101,9 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
   const [profileError, setProfileError] = useState<string | null>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
+  const adminMenuRef = useRef<HTMLDivElement | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -347,8 +350,24 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
                       className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
                       onClick={() => setIsAdminOpen(false)}
                     >
-                      <FileText className="h-3.5 w-3.5" />
+                      <User className="h-3.5 w-3.5" />
                       Applications
+                    </Link>
+                    <Link
+                      to="/admin/counter-edits"
+                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                      onClick={() => setIsAdminOpen(false)}
+                    >
+                      <FileText className="h-3.5 w-3.5" />
+                      Counter Edits
+                    </Link>
+                    <Link
+                      to="/admin/exercises"
+                      className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-800"
+                      onClick={() => setIsAdminOpen(false)}
+                    >
+                      <BookOpen className="h-3.5 w-3.5" />
+                      New Exercises
                     </Link>
                   </div>
                 )}

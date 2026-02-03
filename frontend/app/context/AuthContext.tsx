@@ -32,6 +32,8 @@ const MOCK_USER: UiUser = {
   level: 5,
   xp: 650,
   nextLevelXp: 1000,
+  is_admin: false,
+  is_contributor: false,
 };
 
 function mapAuthUserToUi(user: AuthUser): UiUser {
@@ -54,6 +56,8 @@ function mapAuthUserToUi(user: AuthUser): UiUser {
     level: 5,
     xp: 650,
     nextLevelXp: 1000,
+    is_admin: !!user.is_admin,
+    is_contributor: !!user.is_contributor,
   };
 }
 
