@@ -28,6 +28,9 @@ interface Session {
   is_admin?: boolean;
   is_contributor?: boolean;
   password_hash?: string;
+  gems?: number;
+  current_profile_picture_id?: string;
+  current_profile_picture_name?: string;
 }
 
 interface PasswordHashResult {
@@ -82,12 +85,29 @@ class AuthService {
     const { hashedPassword, salt } = await this.hashPassword(password);
     const userId = uuidv4();
 
-    const result = await this.pool.query(
-      'INSERT INTO users (id, username, email, password_hash, password_salt, display_name) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, username, email, joined_at, display_name',
-      [userId, username, email, hashedPassword, salt, username]
-    );
+    await this.pool.query('BEGIN');
+    try {
+      const defaultPfpResult = await this.pool.query('SELECT id FROM profile_pictures WHERE name = $1', ['default']);
+      const defaultPfpId = defaultPfpResult.rows[0]?.id;
 
-    return result.rows[0];
+      const result = await this.pool.query(
+        'INSERT INTO users (id, username, email, password_hash, password_salt, display_name, current_profile_picture_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, username, email, joined_at, display_name',
+        [userId, username, email, hashedPassword, salt, username, defaultPfpId]
+      );
+
+      if (defaultPfpId) {
+        await this.pool.query(
+          'INSERT INTO user_profile_pictures (user_id, profile_picture_id) VALUES ($1, $2)',
+          [userId, defaultPfpId]
+        );
+      }
+
+      await this.pool.query('COMMIT');
+      return result.rows[0];
+    } catch (error) {
+      await this.pool.query('ROLLBACK');
+      throw error;
+    }
   }
 
   async authenticateUser(identifier: string, password: string): Promise<{ id: string; username: string; email: string }> {
@@ -129,9 +149,12 @@ class AuthService {
   async validateSession(sessionId: string): Promise<Session | null> {
     const result = await this.pool.query(
       `SELECT s.id, s.user_id, s.active_expires, s.idle_expires, s.created_at,
-              u.username, u.email, u.display_name, u.is_admin, u.is_contributor, u.password_hash
+              u.username, u.email, u.display_name, u.is_admin, u.is_contributor, u.password_hash,
+              u.gems, u.current_profile_picture_id,
+              pp.name as current_profile_picture_name
        FROM user_session s
        JOIN users u ON s.user_id = u.id
+       LEFT JOIN profile_pictures pp ON u.current_profile_picture_id = pp.id
        WHERE s.id = $1 AND s.active_expires > $2`,
       [sessionId, this.getCurrentTimestamp()]
     );

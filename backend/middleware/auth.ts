@@ -24,6 +24,9 @@ export interface AuthRequest extends Request {
     password_hash: string;
     is_admin?: boolean;
     is_contributor?: boolean;
+    gems?: number;
+    current_profile_picture_id?: string;
+    current_profile_picture_name?: string;
   };
   session?: {
     id: string;
@@ -36,6 +39,9 @@ export interface AuthRequest extends Request {
     display_name?: string;
     is_admin?: boolean;
     is_contributor?: boolean;
+    gems?: number;
+    current_profile_picture_id?: string;
+    current_profile_picture_name?: string;
   };
 }
 
@@ -59,7 +65,10 @@ export const sessionMiddleware = async (
           display_name: session.display_name,
           password_hash: session.password_hash,
           is_admin: session.is_admin,
-          is_contributor: session.is_contributor
+          is_contributor: session.is_contributor,
+          gems: session.gems,
+          current_profile_picture_id: session.current_profile_picture_id,
+          current_profile_picture_name: session.current_profile_picture_name
         } as AuthRequest['user'];
       }
     } catch (error) {

@@ -160,7 +160,7 @@ router.get("/profile-pictures/available", async (req, res) => {
     const pool = authService.getPool();
 
     const result = await pool.query(
-      'SELECT id, name, description, cost FROM profile_pictures ORDER BY cost, name'
+      "SELECT id, name, description, cost FROM profile_pictures WHERE name != 'default' ORDER BY cost, name"
     );
 
     return res.status(200).json({
