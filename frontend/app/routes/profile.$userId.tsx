@@ -114,8 +114,12 @@ export default function UserProfile() {
         <div className="mx-auto max-w-6xl px-4 py-6 space-y-6">
           <section className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm flex flex-col gap-4 md:flex-row md:items-center md:justify-between dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
-                <img src={avatarImg} alt="Avatar" className="h-14 w-14 object-cover" />
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden border border-slate-200 dark:border-slate-700">
+                <img
+                  src={`/icons/profile_pictures/${uiProfile.current_profile_picture?.name || 'default'}.png`}
+                  alt="Avatar"
+                  className="h-full w-full object-cover"
+                />
               </div>
               <div>
                 <div className="flex items-center gap-2">

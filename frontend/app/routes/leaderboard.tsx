@@ -26,6 +26,7 @@ interface LeaderboardUser {
     display_name: string | null;
     points: number;
     rank: number;
+    profile_picture_name: string | null;
 }
 
 interface LeaderboardResponse {
@@ -237,6 +238,13 @@ export default function LeaderboardPage() {
                                                 ) : (
                                                     <span className="text-sm">#{user.rank}</span>
                                                 )}
+                                            </div>
+                                            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden border border-slate-200 dark:border-slate-700">
+                                                <img
+                                                    src={`/icons/profile_pictures/${user.profile_picture_name || 'default'}.png`}
+                                                    alt="Avatar"
+                                                    className="h-full w-full object-cover"
+                                                />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">

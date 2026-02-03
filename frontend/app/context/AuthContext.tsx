@@ -47,6 +47,9 @@ function mapAuthUserToUi(user: AuthUser): UiUser {
     nextLevelXp: 1000,
     is_admin: !!user.is_admin,
     is_contributor: !!user.is_contributor,
+    gems: user.gems ?? 0,
+    current_profile_picture_id: user.current_profile_picture_id,
+    current_profile_picture_name: user.current_profile_picture_name
   };
 }
 

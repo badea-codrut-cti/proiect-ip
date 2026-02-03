@@ -9,6 +9,7 @@ export default [
   route("badges", "routes/badges.tsx"),
   route("leaderboard", "routes/leaderboard.tsx"),
   route("reviews", "routes/__review.tsx"),
+  route("shop", "routes/shop.tsx"),
 
   route("counters/:counterId", "routes/counters.$counterId.tsx"),
 

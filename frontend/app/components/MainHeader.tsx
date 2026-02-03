@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Bell, User, LogOut, Trophy, ChevronDown, ShieldCheck, FileText, LayoutDashboard, BookOpen, ClipboardCheck, Layers, Award, Users, CheckCircle, XCircle, Megaphone, MessageSquare } from "lucide-react";
+import { Bell, User, LogOut, Trophy, ChevronDown, ShieldCheck, FileText, LayoutDashboard, BookOpen, ClipboardCheck, Layers, Award, Users, CheckCircle, XCircle, Megaphone, MessageSquare, Gem, ShoppingBag } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { useAuth } from "~/context/AuthContext";
@@ -40,6 +40,7 @@ const navItems: NavItem[] = [
   { id: "counters", label: "COUNTERS", to: "/counters", icon: Layers },
   { id: "badges", label: "BADGES", to: "/badges", icon: Award },
   { id: "leaderboard", label: "LEADERBOARD", to: "/leaderboard", icon: Trophy },
+  { id: "shop", label: "SHOP", to: "/shop", icon: ShoppingBag },
   {
     id: "contrib",
     label: "CONTRIBUTIONS",
@@ -490,7 +491,11 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
                     aria-haspopup="true"
                     aria-expanded={isProfileOpen}
                   >
-                    <User className="h-4 w-4" />
+                    <img
+                      src={`/icons/profile_pictures/${authUser?.current_profile_picture_name || 'default'}.png`}
+                      alt="Profile"
+                      className="h-7 w-7 rounded-full object-cover"
+                    />
                   </button>
                 </WalkthroughStep>
 
@@ -511,6 +516,10 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
                       </div>
                       <div className="mt-1 text-[0.7rem] text-slate-400 dark:text-slate-400">
                         {uiProfile.xp}/{uiProfile.nextLevelXp} XP
+                      </div>
+                      <div className="mt-2 flex items-center gap-1.5 text-[0.7rem] text-emerald-600 dark:text-emerald-400">
+                        <Gem className="h-3.5 w-3.5" />
+                        <span className="font-semibold">{authUser?.gems ?? 0} Gems</span>
                       </div>
                       {profileError && (
                         <div className="mt-1 text-[0.68rem] text-red-500">
