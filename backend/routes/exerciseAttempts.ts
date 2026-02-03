@@ -107,7 +107,7 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
   try {
     // Check for an existing pending review for this counter
     const pendingReviewResult = await pool.query(
-      `SELECT r.id, r.generated_number, e.id as exercise_id, e.sentence, e.decimal_points
+      `SELECT r.id, r.generated_number, e.id as exercise_id, e.sentence, e.translation, e.decimal_points
        FROM reviews r
        JOIN exercises e ON r.exercise_id = e.id
        WHERE r.user_id = $1 AND r.counter_id = $2 AND r.completed_at IS NULL
@@ -122,6 +122,7 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
         exercise: {
           id: pendingReview.exercise_id,
           sentence: pendingReview.sentence,
+          translation: pendingReview.translation,
           counter_id: counterId,
           decimal_points: Number(pendingReview.decimal_points)
         },
@@ -130,7 +131,7 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
     }
 
     const exercisesResult = await pool.query(
-      `SELECT e.id, e.sentence, e.min_count, e.max_count, e.decimal_points, c.name as counter_name
+      `SELECT e.id, e.sentence, e.translation, e.min_count, e.max_count, e.decimal_points, c.name as counter_name
        FROM exercises e
        JOIN counters c ON e.counter_id = c.id
 	   WHERE e.counter_id = $1 AND e.status = 'approved'`,
@@ -202,6 +203,7 @@ router.post('/request', sessionMiddleware, async (req: AuthRequest, res: Respons
       exercise: {
         id: chosenExercise.id,
         sentence: chosenExercise.sentence,
+        translation: chosenExercise.translation,
         counter_id: counterId,
         decimal_points: decimalPoints
       },
@@ -309,34 +311,33 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
     // Fetch the incoming state (previous review's result state)
     // The current row's 'state' is NULL (due to constraint)
     const prevReviewResult = await pool.query(
-      `SELECT state FROM reviews 
+      `SELECT state, completed_at FROM reviews 
        WHERE user_id = $1 AND counter_id = $2 AND completed_at IS NOT NULL 
        ORDER BY completed_at DESC LIMIT 1`,
       [req.user.id, review.counter_id]
     );
     const incomingState = prevReviewResult.rows[0]?.state ?? 0;
+    const lastReviewDate = prevReviewResult.rows[0]?.completed_at ? new Date(prevReviewResult.rows[0].completed_at) : undefined;
 
     const card: Card = {
       due: new Date(review.due),
-      stability: Number(review.stability),
-      difficulty: Number(review.difficulty),
-      elapsed_days: Number(review.elapsed_days),
-      scheduled_days: Number(review.scheduled_days),
-      reps: Number(review.reps),
-      lapses: Number(review.lapses),
+      stability: Number(review.stability) || 0,
+      difficulty: Number(review.difficulty) || 0,
+      elapsed_days: Number(review.elapsed_days) || 0,
+      scheduled_days: Number(review.scheduled_days) || 0,
+      reps: Number(review.reps) || 0,
+      lapses: Number(review.lapses) || 0,
       state: incomingState,
-      last_review: review.reps > 0 ? new Date(review.due) : undefined,
+      last_review: lastReviewDate,
       learning_steps: 0
     };
-
-
     const timeDiff = now.getTime() - Number(review.created_at_ms);
 
     const rating = isCorrect ? timeDiff < FAST_RESPONSE_TIME ? Rating.Easy : timeDiff < DECENT_RESPONSE_TIME ? Rating.Good : Rating.Hard : Rating.Again;
+
     const schedulingCards = fsrsInstance.repeat(card, now);
     const result = schedulingCards[rating];
     const newCard = result.card;
-
 
     await pool.query('BEGIN');
 

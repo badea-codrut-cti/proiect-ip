@@ -40,7 +40,7 @@ router.get("/:id", async (req, res) => {
     const hasPendingEdit = pendingEditResult.rows[0].has_pending_edit;
 
     const exercisesResult = await authService.getPool().query(
-      `SELECT id, sentence, min_count, max_count, decimal_points 
+      `SELECT id, sentence, translation, min_count, max_count, decimal_points 
        FROM exercises 
        WHERE counter_id = $1 AND status = 'approved'
        ORDER BY RANDOM() 

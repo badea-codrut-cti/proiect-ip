@@ -13,6 +13,7 @@ type ExerciseData = {
   exercise: {
     id: string;
     sentence: string;
+    translation?: string;
     counter_id: string;
     decimal_points: number;
   };
@@ -309,6 +310,20 @@ export default function ReviewExercise() {
               <div className="text-4xl font-medium tracking-wide text-slate-800 dark:text-slate-100">
                 {sentenceWithBlank}
               </div>
+              {currentReview.exercise.translation && (
+                <div className="text-base text-slate-500 dark:text-slate-400 italic">
+                  {currentReview.exercise.translation.split('<ans>').map((part, index, arr) => (
+                    <span key={index}>
+                      {part}
+                      {index < arr.length - 1 && (
+                        <span className="font-bold text-slate-700 dark:text-slate-200 not-italic">
+                          {currentReview.generated_number}
+                        </span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              )}
               <div className="text-sm text-slate-400 dark:text-slate-500">
                 How do you say{' '}
                 <span className="font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">

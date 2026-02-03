@@ -45,6 +45,7 @@ interface CounterApi {
 interface ExerciseApi {
   id: string;
   sentence: string;
+  translation?: string;
   min_count: number;
   max_count: number;
   decimal_points: number;
@@ -328,11 +329,16 @@ export default function CounterDetailPage() {
                       key={ex.id}
                       className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
                     >
-                      <CardContent className="py-4">
+                      <CardContent className="py-4 space-y-2">
                         <p className="text-sm font-medium text-slate-900 dark:text-slate-50">
                           {formatExerciseSentence(ex.sentence)}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {ex.translation && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                            {formatExerciseSentence(ex.translation)}
+                          </p>
+                        )}
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
                           Range: {ex.min_count} – {ex.max_count}
                           {ex.decimal_points > 0 &&
                             ` • up to ${ex.decimal_points} decimal places`}
