@@ -6,6 +6,7 @@ import { Card, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
 import { BookOpen, Check, X, Clock, Hash, Percent } from "lucide-react";
+import { FinalBossPopout } from "~/components/FinalBossPopout";
 
 interface PendingExercise {
   id: string;
@@ -37,11 +38,26 @@ export default function AdminExercises() {
   const [rejectionReason, setRejectionReason] = useState<{ [key: string]: string }>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  const [bossOpen, setBossOpen] = useState(false);
+  const [wasNonEmpty, setWasNonEmpty] = useState(false);
+
   useEffect(() => {
     if (user?.role === "admin") {
       fetchExercises();
     }
   }, [user]);
+
+  useEffect(() => {
+    if (loadingExercises) return;
+
+    if (exercises.length > 0) {
+      setWasNonEmpty(true);
+    }
+
+    if (wasNonEmpty && exercises.length === 0) {
+      setBossOpen(true);
+    }
+  }, [exercises.length, loadingExercises, wasNonEmpty]);
 
   const fetchExercises = async () => {
     try {
@@ -282,6 +298,16 @@ export default function AdminExercises() {
           </div>
         )}
       </main>
+      <FinalBossPopout
+        open={bossOpen}
+        onClose={() => {
+          setBossOpen(false);
+          setWasNonEmpty(false);
+        }}
+        title="All exercises reviewed!"
+        subtitle="Queue eliminated. Good job."
+        videoSrc="/video/well-done.mp4"
+      />
     </div>
   );
 }

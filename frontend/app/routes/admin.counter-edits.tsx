@@ -14,6 +14,8 @@ import { Textarea } from "~/components/ui/textarea";
 import { FileEdit, Check, X, User, Clock, Hash } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { FinalBossPopout } from "~/components/FinalBossPopout";
+
 
 interface PendingEdit {
   id: string;
@@ -44,6 +46,10 @@ export default function AdminCounterEdits() {
   const [rejectionReason, setRejectionReason] = useState<{ [key: string]: string }>({});
   const [processingId, setProcessingId] = useState<string | null>(null);
 
+  const [showFinalBoss, setShowFinalBoss] = useState(false);
+  const [hadItems, setHadItems] = useState(false);
+
+
   useEffect(() => {
     if (user?.role === "admin") {
       fetchEdits();
@@ -58,12 +64,20 @@ export default function AdminCounterEdits() {
       );
       const list = Array.isArray(raw) ? raw : raw.items ?? [];
       setEdits(list);
+      if (list.length > 0) setHadItems(true);
     } catch (err) {
       console.error("Failed to fetch pending edits:", err);
     } finally {
       setLoadingEdits(false);
     }
   };
+
+  useEffect(() => {
+    if (!loadingEdits && hadItems && edits.length === 0) {
+      setShowFinalBoss(true);
+    }
+  }, [loadingEdits, hadItems, edits.length]);
+
 
   const handleApprove = async (id: string) => {
     if (
@@ -294,6 +308,14 @@ export default function AdminCounterEdits() {
           </div>
         )}
       </main>
+      <FinalBossPopout
+        open={showFinalBoss}
+        onClose={() => setShowFinalBoss(false)}
+        title="All counter edits cleared!"
+        subtitle="Queue eliminated. Good job."
+        videoSrc="/video/well-done.mp4"
+      />
+
     </div>
   );
 }
