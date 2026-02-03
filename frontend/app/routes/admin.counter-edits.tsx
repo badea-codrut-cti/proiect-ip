@@ -23,6 +23,14 @@ function safeDate(value: string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/**
+ * Replace <ans> markers with blanks for UI display.
+ * If you later switch to <ans>...</ans>, tell me and I’ll adapt it.
+ */
+function renderBlanks(text: string) {
+  return text.replace(/<ans>/gi, "___");
+}
+
 function StatusBadge({
   status,
 }: {
@@ -205,16 +213,16 @@ export default function AdminEditedSentences() {
             {items.map((it) => {
               const leave = leaving[it.id];
 
-       
+              // NEW schema: status is always present
               const uiStatus = (it.status ?? "pending") as
                 | "pending"
                 | "approved"
                 | "rejected";
 
-
+              // Backend still returns edited_by_username as alias (for UI stability)
               const who = it.edited_by_username ?? null;
 
-
+              // NEW schema: created_at instead of edited_at
               const created = safeDate((it as any).created_at);
               const dateStr = created ? created.toLocaleDateString() : "—";
               const timeStr = created
@@ -229,7 +237,8 @@ export default function AdminEditedSentences() {
 
               const isProcessingThis = processingId === it.id;
 
-              const currentText = (it.current_content ?? "").trim() || "(empty / not set)";
+              const currentText =
+                (it.current_content ?? "").trim() || "(empty / not set)";
               const proposedText = (it.content ?? "").trim() || "(empty)";
 
               const rejectionReason = it.rejection_reason ?? null;
@@ -242,7 +251,7 @@ export default function AdminEditedSentences() {
                     (leave === "approve"
                       ? "opacity-0 translate-x-6"
                       : leave === "reject"
-                      ? "opacity-0 -translate-x-6"
+                      ? "opacity-0 AMAZ-translate-x-6"
                       : "opacity-100 translate-x-0")
                   }
                 >
@@ -290,7 +299,7 @@ export default function AdminEditedSentences() {
                               Current (in DB)
                             </div>
                             <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl text-sm border border-slate-100 dark:border-slate-800/50 whitespace-pre-wrap leading-relaxed min-h-[140px]">
-                              {currentText}
+                              {renderBlanks(currentText)}
                             </div>
                           </div>
 
@@ -300,7 +309,7 @@ export default function AdminEditedSentences() {
                               Proposed
                             </div>
                             <div className="p-4 bg-emerald-50/60 dark:bg-emerald-900/10 rounded-xl text-sm border border-emerald-200/60 dark:border-emerald-900/30 whitespace-pre-wrap leading-relaxed min-h-[140px]">
-                              {proposedText}
+                              {renderBlanks(proposedText)}
                             </div>
                           </div>
                         </div>
