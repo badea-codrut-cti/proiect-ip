@@ -8,6 +8,9 @@ export interface AuthUser {
   joined_at?: string;
   is_admin?: boolean;
   is_contributor?: boolean;
+  gems?: number;
+  current_profile_picture_id?: string;
+  current_profile_picture_name?: string;
 }
 
 export const authClient = {

@@ -28,5 +28,6 @@ export function mapRealProfileToUi(profile: UserProfileResponse): UiProfile {
         badgesCount,
         reviewsCount: Object.values(profile.review_history || {}).reduce((a, b: number) => a + b, 0),
         reviewHistory: profile.review_history || {},
+        current_profile_picture: profile.current_profile_picture,
     };
 }

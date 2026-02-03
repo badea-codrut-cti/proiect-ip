@@ -36,4 +36,9 @@ export interface UiProfile {
     badgesCount: number;
     reviewsCount: number;
     reviewHistory: Record<string, number>;
+    current_profile_picture?: {
+        id: number;
+        name: string;
+        description: string | null;
+    } | null;
 }
