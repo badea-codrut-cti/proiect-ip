@@ -6,6 +6,7 @@ export default [
   route("profile", "routes/profile.tsx"),
   route("profile/:userId", "routes/profile.$userId.tsx"),
   route("counters", "routes/counters.tsx"),
+  route("badges", "routes/badges.tsx"),
   route("reviews", "routes/__review.tsx"),
 
   route("counters/:counterId", "routes/counters.$counterId.tsx"),
