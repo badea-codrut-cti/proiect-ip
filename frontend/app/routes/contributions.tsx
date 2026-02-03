@@ -32,10 +32,6 @@ function shortId(id?: string) {
   return id.slice(0, 8);
 }
 
-function mainDateFor(tab: Tab, it: MyExerciseContribution | MyCounterEditContribution): Date | null {
-  return safeDate((it as any).created_at ?? null);
-}
-
 function StatusBadge({ status }: { status: "pending" | "approved" | "rejected" }) {
   const cls =
     status === "pending"
@@ -398,18 +394,6 @@ export default function ContributionsPage() {
 
                         <div className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 ring-1 ring-slate-200 dark:ring-slate-800 whitespace-pre-wrap text-sm leading-relaxed">
                           {(it.sentence ?? "").replace(/<ans>/g, "____")}
-                        </div>
-
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 ring-1 ring-slate-200 dark:ring-slate-700">
-                            min: <b className="tabular-nums">{it.min_count}</b>
-                          </span>
-                          <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 ring-1 ring-slate-200 dark:ring-slate-700">
-                            max: <b className="tabular-nums">{it.max_count}</b>
-                          </span>
-                          <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 ring-1 ring-slate-200 dark:ring-slate-700">
-                            decimals: <b className="tabular-nums">{it.decimal_points}</b>
-                          </span>
                         </div>
 
                         {it.status === "rejected" && it.rejection_reason && (
