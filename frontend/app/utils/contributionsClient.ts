@@ -6,16 +6,20 @@ export type MyExerciseContribution = {
   id: string;
   counter_id: string;
   counter_name: string;
+
   sentence: string;
   min_count: number;
   max_count: number;
   decimal_points: number;
 
-  is_approved: boolean;
   status: ReviewStatus;
-  created_at?: string | null;
+
+  created_at: string;              
+  updated_at: string | null;       
   reviewed_at: string | null;
   rejection_reason: string | null;
+
+  approved_by: string | null;
 };
 
 export type MyCounterEditContribution = {
@@ -23,14 +27,17 @@ export type MyCounterEditContribution = {
   counter_id: string;
   counter_name: string;
 
-  current_content: string | null;
-  content: string;
+  current_content: string | null;  // din counters.documentation
+  content: string;                 // propunerea
 
-  is_approved: boolean;
   status: ReviewStatus;
-  edited_at: string;
+
+  created_at: string;              
+  updated_at: string | null;
   reviewed_at: string | null;
   rejection_reason: string | null;
+
+  approved_by: string | null;
 };
 
 export type MyContributionsResponse = {
