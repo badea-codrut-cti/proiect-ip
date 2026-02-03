@@ -102,7 +102,7 @@ router.post("/", sessionMiddleware, async (req: AuthRequest, res: Response) => {
       counterEdit: result.rows[0],
     });
   } catch (error: any) {
-    
+
     if (error?.code === "23505") {
       return res
         .status(409)
@@ -166,12 +166,18 @@ router.post(
         [edit.content, edit.counter_id]
       );
 
+      // Award gems to the creator
+      await authService.getPool().query(
+        `UPDATE users SET gems = gems + 10 WHERE id = $1`,
+        [edit.created_by]
+      );
+
       await authService.getPool().query(
         `INSERT INTO notifications (user_id, message, type, counter_edit_id)
          VALUES ($1, $2, $3, $4)`,
         [
           edit.created_by,
-          `Your documentation edit for ${edit.counter_name} has been approved!`,
+          `Your documentation edit for ${edit.counter_name} has been approved! You earned 10 gems.`,
           "counter_edit_approval",
           editId,
         ]
@@ -184,7 +190,7 @@ router.post(
         message: "Counter edit approved successfully",
       });
     } catch (error) {
-      await authService.getPool().query("ROLLBACK").catch(() => {});
+      await authService.getPool().query("ROLLBACK").catch(() => { });
       console.error("Error approving counter edit:", error);
       return res.status(500).json({ error: "Failed to approve counter edit" });
     }
@@ -263,7 +269,7 @@ router.post(
         message: "Counter edit rejected successfully",
       });
     } catch (error) {
-      await authService.getPool().query("ROLLBACK").catch(() => {});
+      await authService.getPool().query("ROLLBACK").catch(() => { });
       console.error("Error rejecting counter edit:", error);
       return res.status(500).json({ error: "Failed to reject counter edit" });
     }

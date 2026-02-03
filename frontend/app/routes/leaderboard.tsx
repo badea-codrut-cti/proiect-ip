@@ -5,6 +5,7 @@ import {
     Medal,
     Crown,
     Timer,
+    Gem,
 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
@@ -227,6 +228,11 @@ export default function LeaderboardPage() {
                             <div className="space-y-2">
                                 {topUsers.slice(0, 10).map((user) => {
                                     const isCurrentUser = authUser?.id === user.id;
+                                    let gemReward = 0;
+                                    if (user.rank === 1) gemReward = 500;
+                                    else if (user.rank === 2) gemReward = 200;
+                                    else if (user.rank === 3) gemReward = 100;
+
                                     return (
                                         <div
                                             key={user.id}
@@ -261,7 +267,15 @@ export default function LeaderboardPage() {
                                                     @{user.username}
                                                 </p>
                                             </div>
-                                            <div className="text-right">
+
+                                            {gemReward > 0 && (
+                                                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100/50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800">
+                                                    <Gem className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                                                    <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400">+{gemReward}</span>
+                                                </div>
+                                            )}
+
+                                            <div className="text-right ml-2">
                                                 <div className="text-xl font-bold text-slate-900 dark:text-slate-50">
                                                     {user.points}
                                                 </div>

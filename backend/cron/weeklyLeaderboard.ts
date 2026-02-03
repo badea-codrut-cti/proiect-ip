@@ -23,11 +23,26 @@ export default {
                 [lastWeekStart]
             );
 
-            for (const row of topUsersResult.rows) {
+            for (let i = 0; i < topUsersResult.rows.length; i++) {
+                const row = topUsersResult.rows[i];
                 await giveBadge(pool, row.user_id, 'WEEKLY_TOP_10');
+
+                // Award gems for top 3
+                let gemReward = 0;
+                if (i === 0) gemReward = 500;      // 1st place
+                else if (i === 1) gemReward = 200; // 2nd place
+                else if (i === 2) gemReward = 100; // 3rd place
+
+                if (gemReward > 0) {
+                    await pool.query(
+                        `UPDATE users SET gems = gems + $1 WHERE id = $2`,
+                        [gemReward, row.user_id]
+                    );
+                    console.log(`[CRON] Awarded ${gemReward} gems to user ${row.user_id} for rank ${i + 1}`);
+                }
             }
 
-            console.log(`[CRON] Successfully awarded WEEKLY_TOP_10 badges to ${topUsersResult.rowCount} users.`);
+            console.log(`[CRON] Successfully finalized leaderboard for ${topUsersResult.rowCount} users.`);
         } catch (error) {
             console.error('[CRON] Failed to finalize weekly leaderboard:', error);
         }

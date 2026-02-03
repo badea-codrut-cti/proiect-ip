@@ -379,6 +379,18 @@ router.post('/submit', sessionMiddleware, async (req: AuthRequest, res: Response
         [xpAwarded, req.user.id]
       );
 
+      const newXp = userResult.rows[0].xp;
+      const oldXp = newXp - xpAwarded;
+      const levelsGained = Math.floor(newXp / 500) - Math.floor(oldXp / 500);
+
+      if (levelsGained > 0) {
+        const gemsAwarded = levelsGained * 10;
+        await pool.query(
+          `UPDATE users SET gems = gems + $1 WHERE id = $2`,
+          [gemsAwarded, req.user.id]
+        );
+      }
+
       const weeklyPoints = calculateWeeklyPoints(rating);
       if (weeklyPoints > 0) {
         const weekStart = getCurrentWeekStart();

@@ -163,12 +163,18 @@ router.post(
       );
 
       if (exercise.created_by) {
+        // Award gems to the creator
+        await client.query(
+          `UPDATE users SET gems = gems + 10 WHERE id = $1`,
+          [exercise.created_by]
+        );
+
         await client.query(
           `INSERT INTO notifications (user_id, message, type, exercise_id)
            VALUES ($1, $2, $3, $4)`,
           [
             exercise.created_by,
-            `Your exercise proposal for ${exercise.counter_name} has been approved!`,
+            `Your exercise proposal for ${exercise.counter_name} has been approved! You earned 10 gems.`,
             "exercise_approval",
             exerciseId,
           ]
@@ -178,7 +184,7 @@ router.post(
       await client.query("COMMIT");
       return res.status(200).json({ success: true, message: "Exercise approved successfully" });
     } catch (error) {
-      await client.query("ROLLBACK").catch(() => {});
+      await client.query("ROLLBACK").catch(() => { });
       console.error("Error approving exercise:", error);
       return res.status(500).json({ error: "Failed to approve exercise" });
     } finally {
@@ -257,7 +263,7 @@ router.post(
       await client.query("COMMIT");
       return res.status(200).json({ success: true, message: "Exercise rejected successfully" });
     } catch (error) {
-      await client.query("ROLLBACK").catch(() => {});
+      await client.query("ROLLBACK").catch(() => { });
       console.error("Error rejecting exercise:", error);
       return res.status(500).json({ error: "Failed to reject exercise" });
     } finally {
