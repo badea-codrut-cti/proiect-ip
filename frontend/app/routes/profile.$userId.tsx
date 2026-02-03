@@ -41,7 +41,7 @@ const codeToImageName = (code: string): string => {
 export default function UserProfile() {
   const params = useParams();
   const navigate = useNavigate();
-  const { user: authUser, logout, loading: authLoading } = useAuth();
+  const { user: authUser, loading: authLoading } = useAuth();
   const { currentStep, complete } = useWalkthrough();
   const userId = params.userId;
 

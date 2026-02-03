@@ -109,7 +109,6 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
- 
   const notificationsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {

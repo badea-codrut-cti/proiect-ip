@@ -402,47 +402,6 @@ export default function CounterDetailPage() {
                   ))}
                 </div>
               </section>
-              </section>
-              <CardContent className="space-y-3">
-                <Button
-                  className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
-                  variant="default"
-                  type="button"
-                  disabled={learningLoading}
-                  onClick={handleStartLearning}
-                >
-                  {learningLoading ? "Starting..." : "Start Learning"}
-                </Button>
-
-                <Button
-                  className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
-                  variant={mastered ? "outline" : "secondary"}
-                  type="button"
-                  disabled={mastered}
-                  onClick={handleMarkMastered}
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  {mastered ? "Mastered" : "Mark as Mastered"}
-                </Button>
-
-                {exercises.map((ex) => (
-                  <Card
-                    key={ex.id}
-                    className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
-                  >
-                    <CardContent className="py-4">
-                      <p className="text-sm font-medium text-slate-900 dark:text-slate-50">
-                        {formatExerciseSentence(ex.sentence)}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                        Range: {ex.min_count} – {ex.max_count}
-                        {ex.decimal_points > 0 &&
-                          ` • up to ${ex.decimal_points} decimal places`}
-                      </p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </CardContent>
             </div>
 
             <aside className="w-full space-y-4 lg:w-80">
