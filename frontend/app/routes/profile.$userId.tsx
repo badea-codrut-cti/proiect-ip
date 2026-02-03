@@ -176,13 +176,14 @@ export default function UserProfile() {
                     level: Math.min(4, count as number) as 0 | 1 | 2 | 3 | 4,
                   }))}
                   theme={{
-                    light: ["#f0fdf4", "#dcfce7", "#86efac", "#22c55e", "#15803d"],
-                    dark: ["#022c22", "#064e3b", "#059669", "#10b981", "#34d399"],
+                    light: ["#e2e8f0", "#dcfce7", "#86efac", "#22c55e", "#15803d"],
+                    dark: ["#1e293b", "#064e3b", "#059669", "#10b981", "#34d399"],
                   }}
                   labels={{ totalCount: "{{count}} reviews in the last year" }}
                   fontSize={12}
                   blockSize={12}
                   blockMargin={4}
+                  blockRadius={2}
                 />
               ) : (
                 <div className="py-8 text-center text-slate-500 text-xs italic">
