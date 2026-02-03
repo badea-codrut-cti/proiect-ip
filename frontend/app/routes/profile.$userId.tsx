@@ -24,12 +24,6 @@ import type { UiProfile } from "~/types/profile";
 import { useWalkthrough } from "~/context/WalkthroughContext";
 
 import avatarImg from "~/assets/avatars/user-default.png";
-import badgeFirstSteps from "~/assets/badges/first-steps.png";
-import badgeWeekWarrior from "~/assets/badges/week-warrior.png";
-import badgeStudyMaster from "~/assets/badges/study-master.png";
-import badgePerfectWeek from "~/assets/badges/perfect-week.png";
-import badgeTop10 from "~/assets/badges/top-10.png";
-import badgeCounterKing from "~/assets/badges/counter-king.png";
 
 export function meta() {
   return [
@@ -38,14 +32,17 @@ export function meta() {
   ];
 }
 
-const badgeConfigs = [
-  { label: "First Steps", image: badgeFirstSteps },
-  { label: "Week Warrior", image: badgeWeekWarrior },
-  { label: "Study Master", image: badgeStudyMaster },
-  { label: "Perfect Week", image: badgePerfectWeek },
-  { label: "Top 10", image: badgeTop10 },
-  { label: "Counter King", image: badgeCounterKing },
-];
+interface Badge {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  earned_at: string | null;
+}
+
+const codeToImageName = (code: string): string => {
+  return code.toLowerCase();
+};
 
 export default function UserProfile() {
   const params = useParams();
@@ -55,6 +52,7 @@ export default function UserProfile() {
   const userId = params.userId;
 
   const [uiProfile, setUiProfile] = useState<UiProfile | null>(null);
+  const [badges, setBadges] = useState<Badge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -72,9 +70,13 @@ export default function UserProfile() {
     }
 
     setLoading(true);
-    profileClient.getProfile(userId)
-      .then((data) => {
-        setUiProfile(mapRealProfileToUi(data));
+    Promise.all([
+      profileClient.getProfile(userId),
+      apiFetch<Badge[]>(`/api/profiles/badges/user/${userId}`)
+    ])
+      .then(([profileData, badgesData]) => {
+        setUiProfile(mapRealProfileToUi(profileData));
+        setBadges(badgesData);
         setLoading(false);
       })
       .catch((err) => {
@@ -214,8 +216,8 @@ export default function UserProfile() {
                             <div
                               key={notification.id}
                               className={`p-3 text-sm ${!notification.is_read
-                                  ? 'bg-blue-50 dark:bg-slate-800'
-                                  : 'bg-white dark:bg-slate-900'
+                                ? 'bg-blue-50 dark:bg-slate-800'
+                                : 'bg-white dark:bg-slate-900'
                                 }`}
                             >
                               <div className="font-medium text-slate-900 dark:text-slate-100">
@@ -306,7 +308,7 @@ export default function UserProfile() {
               </div>
               <div className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-3 py-1 text-sky-700 dark:bg-sky-900 dark:text-sky-200">
                 <Medal className="h-3 w-3" />
-                <span>{uiProfile.badgesCount} Badges</span>
+                <span>{badges.filter(b => b.earned_at !== null).length} Badges</span>
               </div>
               <div className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-200">
                 <Target className="h-3 w-3" />
@@ -349,14 +351,21 @@ export default function UserProfile() {
               <CardTitle className="text-sm font-semibold">Earned Badges</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
-                {badgeConfigs.map((badge, index) => (
-                  <div key={badge.label} className={`flex flex-col items-center gap-2 p-4 rounded-xl border ${index < uiProfile.badgesCount ? 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700' : 'opacity-40 grayscale border-transparent'}`}>
-                    <img src={badge.image} alt={badge.label} className="h-10 w-10 object-contain" />
-                    <span className="text-[0.65rem] font-medium text-center">{badge.label}</span>
-                  </div>
-                ))}
-              </div>
+              {badges.filter(b => b.earned_at !== null).length > 0 ? (
+                <div className="grid gap-4 grid-cols-2 md:grid-cols-4 lg:grid-cols-6">
+                  {badges.filter(b => b.earned_at !== null).map((badge) => (
+                    <div key={badge.id} className="flex flex-col items-center gap-2 p-4 rounded-xl border bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700" title={badge.description}>
+                      <img src={`/icons/badges/${codeToImageName(badge.code)}.png`} alt={badge.name} className="h-10 w-10 object-contain" />
+                      <span className="text-[0.65rem] font-medium text-center">{badge.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center text-slate-500 dark:text-slate-400 py-8">
+                  <p className="text-sm">No badges earned yet</p>
+                  <p className="text-xs mt-1">Complete exercises to earn your first badge!</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

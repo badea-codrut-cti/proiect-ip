@@ -226,4 +226,25 @@ router.get("/badges/all", async (req, res) => {
   }
 });
 
+router.get("/badges/user/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const pool = authService.getPool();
+
+    const badgesResult = await pool.query(
+      `SELECT b.id, b.code, b.name, b.description, ub.earned_at
+       FROM badges b
+       LEFT JOIN user_badges ub ON b.id = ub.badge_id AND ub.user_id = $1
+       ORDER BY b.id`,
+      [userId]
+    );
+
+    return res.status(200).json(badgesResult.rows);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server error" });
+  }
+});
+
 export default router;
