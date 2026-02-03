@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Bell, User, LogOut, Trophy, ChevronDown, ShieldCheck, FileText, LayoutDashboard, BookOpen, ClipboardCheck, Layers, Award, Users, CheckCircle, XCircle, Megaphone, MessageSquare, Gem, ShoppingBag } from "lucide-react";
+import { Bell, User, LogOut, Trophy, ChevronDown, ShieldCheck, FileText, LayoutDashboard, BookOpen, ClipboardCheck, Layers, Award, Users, CheckCircle, XCircle, Megaphone, MessageSquare, Gem, ShoppingBag, Menu, X } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { useAuth } from "~/context/AuthContext";
@@ -112,6 +112,7 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const adminMenuRef = useRef<HTMLDivElement | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -425,6 +426,11 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
 
           {isAuthenticated && uiProfile ? (
             <>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-800">
+                <Gem className="h-3.5 w-3.5" />
+                <span className="text-[0.65rem] font-bold uppercase tracking-wider">{authUser?.gems ?? 0}</span>
+              </div>
+
               <div className="relative" ref={notificationsMenuRef}>
                 <button
                   type="button"
@@ -441,7 +447,7 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
                 </button>
 
                 {isNotificationsOpen && (
-                  <div className="absolute right-0 mt-3 w-80 rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900 z-50 max-h-96 overflow-y-auto">
+                  <div className="absolute right-0 mt-3 w-80 rounded-xl border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900 z-50 max-h-96 overflow-y-auto animate-in fade-in zoom-in duration-200">
                     {notifications.length === 0 ? (
                       <div className="p-4 text-center text-sm text-slate-500 dark:text-slate-400">
                         No notifications
@@ -517,10 +523,6 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
                       <div className="mt-1 text-[0.7rem] text-slate-400 dark:text-slate-400">
                         {uiProfile.xp}/{uiProfile.nextLevelXp} XP
                       </div>
-                      <div className="mt-2 flex items-center gap-1.5 text-[0.7rem] text-emerald-600 dark:text-emerald-400">
-                        <Gem className="h-3.5 w-3.5" />
-                        <span className="font-semibold">{authUser?.gems ?? 0} Gems</span>
-                      </div>
                       {profileError && (
                         <div className="mt-1 text-[0.68rem] text-red-500">
                           {profileError}
@@ -569,8 +571,69 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
               <Link to="/login">Login / Register</Link>
             </Button>
           ) : null}
+
+          {isAuthenticated && (
+            <button
+              type="button"
+              className="flex md:hidden h-8 w-8 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Mobile Menu */}
+      {isAuthenticated && isMobileMenuOpen && (
+        <div className="md:hidden border-t bg-white dark:bg-slate-900 animate-in slide-in-from-top duration-200">
+          <nav className="flex flex-col p-4 gap-4 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+            {visibleNavItems.map((item) => {
+              const isActive = item.id === activeNav;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.id}
+                  to={item.to}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={
+                    "flex items-center gap-3 py-2 px-3 rounded-lg transition-colors " +
+                    (isActive
+                      ? "bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-slate-100"
+                      : "hover:bg-slate-50 dark:hover:bg-slate-800")
+                  }
+                >
+                  {Icon && <Icon className="h-4 w-4" />}
+                  <span className="flex-1">{item.label}</span>
+                  {item.id === "reviews" && pendingReviewsCount > 0 && (
+                    <span className="bg-red-500 text-white text-[0.6rem] font-bold px-1.5 py-0.5 rounded-full min-w-[1.2rem] text-center">
+                      {pendingReviewsCount}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+
+            {authUser?.role === "admin" && (
+              <div className="mt-2 space-y-1">
+                <div className="px-3 py-1 text-[0.6rem] text-slate-400 dark:text-slate-500">ADMIN CONTROL</div>
+                <Link to="/admin" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
+                </Link>
+                <Link to="/admin/contributor-applications" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
+                  <User className="h-4 w-4" />
+                  Applications
+                </Link>
+                <Link to="/admin/counter-edits" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800">
+                  <FileText className="h-4 w-4" />
+                  Edits
+                </Link>
+              </div>
+            )}
+          </nav>
+        </div>
+      )}
     </header>
   );
 }
