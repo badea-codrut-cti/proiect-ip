@@ -1,9 +1,13 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import {
+    Bell,
+    User,
+    LogOut,
     Trophy,
     Medal,
     ShieldCheck,
+    Settings as SettingsIcon,
 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
