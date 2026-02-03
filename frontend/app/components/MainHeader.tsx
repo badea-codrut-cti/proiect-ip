@@ -109,6 +109,7 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+ 
   const notificationsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -258,7 +259,7 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
   }, [isAuthenticated, mode]);
 
   return (
-    <header className="border-b bg-white dark:bg-slate-900 dark:border-slate-800">
+    <header className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur dark:bg-slate-900/80 dark:border-slate-800">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <Link to="/" className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-gradient-to-tr from-sky-400 via-indigo-500 to-pink-400" />

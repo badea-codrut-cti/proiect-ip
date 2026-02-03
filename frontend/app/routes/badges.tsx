@@ -1,15 +1,20 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import {
+    Bell,
+    User,
+    LogOut,
     Trophy,
     Medal,
     ShieldCheck,
+    Settings as SettingsIcon,
 } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
 import { useAuth } from "~/context/AuthContext";
 import { MainHeader } from "~/components/MainHeader";
+import { ThemeToggle } from "~/components/ThemeToggle";
 import { apiFetch } from "~/utils/api";
 
 export function meta() {
@@ -33,10 +38,14 @@ const codeToImageName = (code: string): string => {
 
 export default function BadgesPage() {
     const navigate = useNavigate();
-    const { user: authUser, loading: authLoading } = useAuth();
+    const { user: authUser, logout, loading: authLoading } = useAuth();
     const [badges, setBadges] = useState<Badge[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     useEffect(() => {
         const fetchBadges = async () => {
@@ -59,6 +68,49 @@ export default function BadgesPage() {
 
         fetchBadges();
     }, [authUser]);
+
+    useEffect(() => {
+        if (!authUser) return;
+
+        const fetchNotifications = async () => {
+            try {
+                const data = await apiFetch<any[]>("/api/notifications");
+                setNotifications(data);
+                const unread = data.filter(n => !n.is_read).length;
+                setUnreadCount(unread);
+            } catch (error) {
+                console.error("Failed to fetch notifications:", error);
+            }
+        };
+
+        fetchNotifications();
+        const interval = setInterval(fetchNotifications, 30 * 1000);
+        return () => clearInterval(interval);
+    }, [authUser]);
+
+    const handleOpenNotifications = async () => {
+        if (isNotificationsOpen) {
+            setIsNotificationsOpen(false);
+            return;
+        }
+
+        setIsNotificationsOpen(true);
+        if (unreadCount > 0) {
+            try {
+                await apiFetch("/api/notifications/mark-read", { method: "POST" });
+                setUnreadCount(0);
+                const data = await apiFetch<any[]>("/api/notifications");
+                setNotifications(data);
+            } catch (error) {
+                console.error("Failed to mark notifications as read:", error);
+            }
+        }
+    };
+
+    const handleLogout = async () => {
+        await logout();
+        navigate("/");
+    };
 
     const earnedBadges = badges.filter(b => b.earned_at !== null);
     const lockedBadges = badges.filter(b => b.earned_at === null);
