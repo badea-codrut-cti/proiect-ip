@@ -108,8 +108,7 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const profileMenuRef = useRef<HTMLDivElement | null>(null);
-  const adminMenuRef = useRef<HTMLDivElement | null>(null);
+ 
   const notificationsMenuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -259,7 +258,7 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
   }, [isAuthenticated, mode]);
 
   return (
-    <header className="border-b bg-white dark:bg-slate-900 dark:border-slate-800">
+    <header className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur dark:bg-slate-900/80 dark:border-slate-800">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-4">
           {backLink && (
