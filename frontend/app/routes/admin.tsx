@@ -186,16 +186,6 @@ export default function AdminDashboard() {
         return;
       }
 
-      if (mode === "mock") {
-        setCounts({
-          pending_contributor_apps: 2,
-          pending_new_sentences: 3,
-          pending_edited_sentences: 5,
-        });
-        setLoadingCounts(false);
-        return;
-      }
-
       setLoadingCounts(true);
       try {
         const data = await adminReviewClient.getCounts();

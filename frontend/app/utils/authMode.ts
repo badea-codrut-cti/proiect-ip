@@ -1,11 +1,11 @@
-export type AuthMode = "real" | "mock" | "none";
+export type AuthMode = "real" | "none";
 
 const STORAGE_KEY = "nc_auth_mode";
 
 export function getAuthMode(): AuthMode {
   if (typeof window === "undefined") return "none";
   const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (raw === "real" || raw === "mock") return raw;
+  if (raw === "real") return raw;
   return "none";
 }
 

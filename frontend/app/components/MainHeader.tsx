@@ -76,15 +76,7 @@ function mapRealProfileToUi(profile: UserProfileResponse): UiProfile {
   };
 }
 
-function mapMockFromUiUser(user: UiUser): UiProfile {
-  return {
-    id: user.id,
-    username: user.displayName,
-    level: user.level,
-    xp: user.xp,
-    nextLevelXp: user.nextLevelXp,
-  };
-}
+
 
 
 export function MainHeader({ activeNav }: MainHeaderProps) {
@@ -92,7 +84,6 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
     user: authUser,
     mode,
     loading: authLoading,
-    loginMock,
     logout,
   } = useAuth();
   const { currentStep, nextStep } = useWalkthrough();
@@ -138,12 +129,7 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
       return;
     }
 
-    if (mode === "mock") {
-      setUiProfile(mapMockFromUiUser(authUser));
-      setProfileError(null);
-      setProfileLoading(false);
-      return;
-    }
+
 
     let cancelled = false;
 
@@ -186,10 +172,7 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
       )
       : [];
 
-  const handleMockLogin = () => {
-    loginMock();
-    setIsProfileOpen(false);
-  };
+
 
   const handleSignOut = async () => {
     await logout();
@@ -220,7 +203,7 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
   const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(0);
 
   useEffect(() => {
-    if (!isAuthenticated || mode === "mock") return;
+    if (!isAuthenticated) return;
 
     const fetchPendingCount = async () => {
       try {
@@ -238,7 +221,7 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
   }, [isAuthenticated, mode]);
 
   useEffect(() => {
-    if (!isAuthenticated || mode === "mock") return;
+    if (!isAuthenticated) return;
 
     const fetchNotifications = async () => {
       try {
@@ -515,25 +498,13 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
               </div>
             </>
           ) : !authLoading ? (
-            <>
-              <Button
-                asChild
-                size="sm"
-                className="rounded-full px-4 text-xs font-semibold tracking-[0.18em] uppercase"
-              >
-                <Link to="/login">Login / Register</Link>
-              </Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="rounded-full px-4 text-xs font-semibold tracking-[0.18em] uppercase"
-                onClick={handleMockLogin}
-              >
-                Mock user
-              </Button>
-            </>
+            <Button
+              asChild
+              size="sm"
+              className="rounded-full px-4 text-xs font-semibold tracking-[0.18em] uppercase"
+            >
+              <Link to="/login">Login / Register</Link>
+            </Button>
           ) : null}
         </div>
       </div>

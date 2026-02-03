@@ -18,23 +18,12 @@ interface AuthContextValue {
   mode: AuthMode;
   user: UiUser | null;
   loading: boolean;
-  loginMock: () => void;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-const MOCK_USER: UiUser = {
-  id: "mock-user",
-  displayName: "KanaLearner",
-  avatarInitials: "KL",
-  role: "learner",
-  level: 5,
-  xp: 650,
-  nextLevelXp: 1000,
-  is_admin: false,
-  is_contributor: false,
-};
+
 
 function mapAuthUserToUi(user: AuthUser): UiUser {
   const initials =
@@ -72,13 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async function bootstrap() {
       const storedMode = getAuthMode();
 
-      if (storedMode === "mock") {
-        if (cancelled) return;
-        setMode("mock");
-        setUser(MOCK_USER);
-        setLoading(false);
-        return;
-      }
+
 
       try {
         const me = await authClient.me();
@@ -104,11 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const loginMock = () => {
-    setMode("mock");
-    setAuthMode("mock");
-    setUser(MOCK_USER);
-  };
+
 
   const logout = async () => {
     if (mode === "real") {
@@ -126,7 +105,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mode,
     user,
     loading,
-    loginMock,
     logout,
   };
 
