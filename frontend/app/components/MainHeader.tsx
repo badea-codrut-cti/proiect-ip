@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { Bell, User, LogOut, Trophy, ChevronDown, ShieldCheck, FileText, LayoutDashboard, BookOpen, ClipboardCheck, Layers, Award, Users } from "lucide-react";
+import { Bell, User, LogOut, Trophy, ChevronDown, ShieldCheck, FileText, LayoutDashboard, BookOpen, ClipboardCheck, Layers, Award, Users, CheckCircle, XCircle, Megaphone, MessageSquare } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import { ThemeToggle } from "~/components/ThemeToggle";
 import { useAuth } from "~/context/AuthContext";
@@ -19,6 +19,20 @@ interface NavItem {
   to: string;
   icon?: React.ComponentType<{ className?: string }>;
   roles?: Role[];
+}
+
+interface Notification {
+  id: string;
+  message: string;
+  type: string;
+  exercise_id?: string | null;
+  counter_edit_id?: string | null;
+  announcement_id?: string | null;
+  badge_id?: string | null;
+  badge_code?: string | null;
+  contributor_application_id?: string | null;
+  is_read: boolean;
+  created_at: string;
 }
 
 const navItems: NavItem[] = [
@@ -97,7 +111,7 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
   const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const adminMenuRef = useRef<HTMLDivElement | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const notificationsMenuRef = useRef<HTMLDivElement | null>(null);
@@ -118,6 +132,43 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const getNotificationIcon = (type: string, badgeCode?: string | null) => {
+    const iconClass = "h-8 w-8 flex-shrink-0";
+
+    switch (type) {
+      case 'exercise_approval':
+      case 'counter_edit_approval':
+      case 'contributor_application_approval':
+        return <CheckCircle className={`${iconClass} text-green-500`} />;
+
+      case 'exercise_rejection':
+      case 'counter_edit_rejection':
+      case 'contributor_application_rejection':
+        return <XCircle className={`${iconClass} text-red-500`} />;
+
+      case 'announcement':
+        return <Megaphone className={`${iconClass} text-blue-500`} />;
+
+      case 'feedback':
+        return <MessageSquare className={`${iconClass} text-purple-500`} />;
+
+      case 'badge_earned':
+        if (badgeCode) {
+          return (
+            <img
+              src={`/icons/badges/${badgeCode.toLowerCase()}.png`}
+              alt="Badge"
+              className="h-8 w-8 object-contain flex-shrink-0"
+            />
+          );
+        }
+        return <Award className={`${iconClass} text-amber-500`} />;
+
+      default:
+        return <Bell className={`${iconClass} text-slate-500`} />;
+    }
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -192,7 +243,7 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
         await apiFetch("/api/notifications/mark-read", { method: "POST" });
         setUnreadCount(0);
         // Refetch to update read status
-        const data = await apiFetch<any[]>("/api/notifications");
+        const data = await apiFetch<Notification[]>("/api/notifications");
         setNotifications(data);
       } catch (error) {
         console.error("Failed to mark notifications as read:", error);
@@ -225,7 +276,7 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
 
     const fetchNotifications = async () => {
       try {
-        const data = await apiFetch<any[]>("/api/notifications");
+        const data = await apiFetch<Notification[]>("/api/notifications");
         setNotifications(data);
         const unread = data.filter(n => !n.is_read).length;
         setUnreadCount(unread);
@@ -399,16 +450,19 @@ export function MainHeader({ activeNav }: MainHeaderProps) {
                         {notifications.map((notification) => (
                           <div
                             key={notification.id}
-                            className={`p-3 text-sm ${!notification.is_read
+                            className={`p-3 flex gap-3 items-start ${!notification.is_read
                               ? 'bg-blue-50 dark:bg-slate-800'
                               : 'bg-white dark:bg-slate-900'
                               }`}
                           >
-                            <div className="font-medium text-slate-900 dark:text-slate-100">
-                              {notification.message}
-                            </div>
-                            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                              {new Date(notification.created_at).toLocaleDateString()} {new Date(notification.created_at).toLocaleTimeString()}
+                            {getNotificationIcon(notification.type, notification.badge_code)}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                                {notification.message}
+                              </div>
+                              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                {new Date(notification.created_at).toLocaleDateString()} {new Date(notification.created_at).toLocaleTimeString()}
+                              </div>
                             </div>
                           </div>
                         ))}
