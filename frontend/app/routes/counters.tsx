@@ -10,6 +10,8 @@ import {
 } from "~/components/ui/card";
 import { BookOpen } from "lucide-react";
 import { useAuth } from "~/context/AuthContext";
+import { WalkthroughStep } from "~/components/WalkthroughStep";
+import { useWalkthrough } from "~/context/WalkthroughContext";
 
 export function meta() {
   return [
@@ -54,6 +56,7 @@ export default function CountersPage() {
   const { counters } = useLoaderData<typeof loader>();
 
   const { user, loading } = useAuth();
+  const { currentStep, nextStep } = useWalkthrough();
   const isAuthenticated = !!user;
 
   if (loading) {
@@ -133,15 +136,36 @@ export default function CountersPage() {
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <Button
-                            asChild
-                            size="sm"
-                            className="rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
-                          >
-                            <Link to={`/counters/${counter.id}`}>
-                              Learn
-                            </Link>
-                          </Button>
+                          {counter.id === counters[0]?.id ? (
+                            <WalkthroughStep
+                              step="pick_counter"
+                              title="Choose a Counter"
+                              description="Click on 'Learn' to view the details of a counter and add it to your SRS."
+                            >
+                              <Button
+                                asChild
+                                size="sm"
+                                className="rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
+                                onClick={() => {
+                                  if (currentStep === "pick_counter") nextStep();
+                                }}
+                              >
+                                <Link to={`/counters/${counter.id}`}>
+                                  Learn
+                                </Link>
+                              </Button>
+                            </WalkthroughStep>
+                          ) : (
+                            <Button
+                              asChild
+                              size="sm"
+                              className="rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
+                            >
+                              <Link to={`/counters/${counter.id}`}>
+                                Learn
+                              </Link>
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))}
