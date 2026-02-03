@@ -32,16 +32,18 @@ export default function LeaderboardPage() {
         setLoading(true);
         const result = await apiFetch<LeaderboardData>("/api/leaderboard/weekly");
         
-        // If user is unranked but authenticated, add them to the list
         if (result.user_rank.rank === null && user) {
-          const userEntry: LeaderboardEntry = {
-            id: user.id,
-            username: user.displayName,
-            display_name: user.displayName,
-            points: result.user_rank.points,
-            rank: result.top_users.length + 1
-          };
-          result.top_users.push(userEntry);
+          const isUserInTopUsers = result.top_users.some(entry => entry.id === user.id);
+          if (!isUserInTopUsers) {
+            const userEntry: LeaderboardEntry = {
+              id: user.id,
+              username: user.displayName,
+              display_name: user.displayName,
+              points: result.user_rank.points,
+              rank: result.top_users.length + 1
+            };
+            result.top_users.push(userEntry);
+          }
         }
         
         setData(result);
@@ -83,7 +85,6 @@ export default function LeaderboardPage() {
 
         {data && (
           <div className="space-y-6">
-            {/* User's Rank */}
             {data.user_rank && (
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                 <div className="flex justify-between items-center">
@@ -103,7 +104,6 @@ export default function LeaderboardPage() {
               </div>
             )}
 
-            {/* Leaderboard Table */}
             <div className="bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -121,9 +121,9 @@ export default function LeaderboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.top_users.map((user, index) => (
+                    {data.top_users.map((entry, index) => (
                       <tr
-                        key={user.id}
+                        key={entry.id}
                         className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
                       >
                         <td className="px-6 py-4 text-sm font-semibold text-slate-900 dark:text-slate-100">
@@ -138,17 +138,17 @@ export default function LeaderboardPage() {
                                     : "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
                             }`}
                           >
-                            {user.rank}
+                            {entry.rank}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-900 dark:text-slate-100">
                           <div>
-                            <p className="font-medium">{user.display_name || user.username}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">@{user.username}</p>
+                            <p className="font-medium">{entry.display_name || entry.username}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">@{entry.username}</p>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right text-sm font-semibold text-slate-900 dark:text-slate-100">
-                          {user.points}
+                          {entry.points}
                         </td>
                       </tr>
                     ))}
