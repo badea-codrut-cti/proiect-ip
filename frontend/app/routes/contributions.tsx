@@ -199,7 +199,7 @@ export default function ContributionsPage() {
             <div className="space-y-2">
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight">My Contributions</h1>
               <p className="text-slate-500 dark:text-slate-400 max-w-2xl">
-                Vezi ce ai trimis (exerciții noi / editări) și statusul lor.
+                See what you have sent (new exercises/edits) and their status.
               </p>
             </div>
 
@@ -319,16 +319,16 @@ export default function ContributionsPage() {
           </div>
         ) : rawItems.length === 0 ? (
           <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl ring-1 ring-slate-200 dark:ring-slate-800">
-            <div className="text-lg font-semibold">N-ai nimic trimis aici încă.</div>
+            <div className="text-lg font-semibold">You haven't sent anything here yet..</div>
             <div className="mt-2 text-slate-500 dark:text-slate-400">
-              Când trimiți un exercițiu sau o editare, o să apară aici.
+              When you submit an exercise or edit, it will appear here.
             </div>
           </div>
         ) : items.length === 0 ? (
           <div className="p-12 text-center bg-white dark:bg-slate-900 rounded-2xl ring-1 ring-slate-200 dark:ring-slate-800">
             <div className="text-lg font-semibold">N-am găsit nimic pentru filtrul curent.</div>
             <div className="mt-2 text-slate-500 dark:text-slate-400">
-              Încearcă alt status / caută altceva / apasă Reset.
+              Try another status / search for something else / press Reset.
             </div>
           </div>
         ) : (
