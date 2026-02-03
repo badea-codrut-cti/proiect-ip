@@ -9,7 +9,9 @@ import {
   type UserProfileResponse,
 } from "~/utils/profileClient";
 import { apiFetch } from "~/utils/api";
+import { WalkthroughStep } from "./WalkthroughStep";
 import type { Role, UiUser } from "~/types/auth";
+import { useWalkthrough } from "~/context/WalkthroughContext";
 
 interface NavItem {
   id: string;
@@ -32,7 +34,7 @@ const navItems: NavItem[] = [
   },
   {
     id: "apply-contrib",
-    label: "BECOME CONTRIBUTOR",
+    label: "Become Contributor",
     to: "/contributor/apply",
     roles: ["learner"],
   },
@@ -95,6 +97,7 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
     loginMock,
     logout,
   } = useAuth();
+  const { currentStep, nextStep } = useWalkthrough();
 
   const [uiProfile, setUiProfile] = useState<UiProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -283,7 +286,31 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
           <nav className="hidden md:flex items-center gap-6 text-[0.7rem] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
             {visibleNavItems.map((item) => {
               const isActive = item.id === activeNav;
-              return (
+              return item.id === "counters" ? (
+                <WalkthroughStep
+                  key={item.id}
+                  step="go_to_counters"
+                  title="Discover Counters"
+                  description="Start by exploring the different Japanese counters you can learn here."
+                >
+                  <Link
+                    to={item.to}
+                    onClick={() => {
+                      if (currentStep === "go_to_counters") {
+                        nextStep();
+                      }
+                    }}
+                    className={
+                      "transition-colors" +
+                      (isActive
+                        ? " text-slate-900 dark:text-slate-100"
+                        : " hover:text-slate-900 dark:hover:text-slate-100")
+                    }
+                  >
+                    {item.label}
+                  </Link>
+                </WalkthroughStep>
+              ) : (
                 <Link
                   key={item.id}
                   to={item.to}
@@ -406,11 +433,10 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
                         {notifications.map((notification) => (
                           <div
                             key={notification.id}
-                            className={`p-3 text-sm ${
-                              !notification.is_read
-                                ? 'bg-blue-50 dark:bg-slate-800'
-                                : 'bg-white dark:bg-slate-900'
-                            }`}
+                            className={`p-3 text-sm ${!notification.is_read
+                              ? 'bg-blue-50 dark:bg-slate-800'
+                              : 'bg-white dark:bg-slate-900'
+                              }`}
                           >
                             <div className="font-medium text-slate-900 dark:text-slate-100">
                               {notification.message}
@@ -427,15 +453,26 @@ export function MainHeader({ activeNav, backLink }: MainHeaderProps) {
               </div>
 
               <div className="relative" ref={profileMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsProfileOpen((o) => !o)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
-                  aria-haspopup="true"
-                  aria-expanded={isProfileOpen}
+                <WalkthroughStep
+                  step="go_to_profile"
+                  title="Your Profile"
+                  description="Check your levels, XP, and badges by clicking on your profile icon."
                 >
-                  <User className="h-4 w-4" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsProfileOpen((o) => !o);
+                      if (currentStep === "go_to_profile") {
+                        nextStep();
+                      }
+                    }}
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-slate-700 hover:bg-slate-300 transition-colors dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                    aria-haspopup="true"
+                    aria-expanded={isProfileOpen}
+                  >
+                    <User className="h-4 w-4" />
+                  </button>
+                </WalkthroughStep>
 
                 {isProfileOpen && (
                   <div className="absolute right-0 mt-3 w-64 rounded-xl border border-slate-200 bg-white py-3 shadow-lg text-left dark:border-slate-700 dark:bg-slate-900">

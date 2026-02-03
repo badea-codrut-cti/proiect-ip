@@ -12,6 +12,7 @@ import {
   CardContent,
 } from "~/components/ui/card";
 import { apiFetch } from "~/utils/api";
+import { useWalkthrough } from "~/context/WalkthroughContext";
 
 import {
   ChevronRight,
@@ -25,6 +26,7 @@ import {
 import { useAuth } from "~/context/AuthContext";
 import { Textarea } from "~/components/ui/textarea";
 import { Input } from "~/components/ui/input";
+import { WalkthroughStep } from "~/components/WalkthroughStep";
 
 export function meta() {
   return [
@@ -112,6 +114,7 @@ export default function CounterDetailPage() {
 
   const [hasPendingEdit, setHasPendingEdit] = useState(initialHasPendingEdit);
   const { user, loading } = useAuth();
+  const { currentStep, nextStep } = useWalkthrough();
   const isAuthenticated = !!user;
   const isContributor = user?.is_contributor || user?.role === "admin";
 
@@ -206,6 +209,9 @@ export default function CounterDetailPage() {
         method: "POST",
         body: JSON.stringify({ counterId: counter.id }),
       });
+      if (currentStep === "start_learning") {
+        nextStep();
+      }
       navigate("/reviews");
     } catch (err) {
       console.error("Failed to start learning:", err);
@@ -379,6 +385,26 @@ export default function CounterDetailPage() {
                     There are no approved example exercises for this counter yet.
                   </p>
                 )}
+                <div className="space-y-3">
+                  {exercises.map((ex) => (
+                    <Card
+                      key={ex.id}
+                      className="border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
+                    >
+                      <CardContent className="py-4">
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-50">
+                          {formatExerciseSentence(ex.sentence)}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                          Range: {ex.min_count} – {ex.max_count}
+                          {ex.decimal_points > 0 &&
+                            ` • up to ${ex.decimal_points} decimal places`}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </section>
               </section>
               <CardContent className="space-y-3">
                 <Button
@@ -436,15 +462,21 @@ export default function CounterDetailPage() {
                   )}
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button
-                    className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
-                    variant="default"
-                    type="button"
-                    disabled={learningLoading}
-                    onClick={handleStartLearning}
+                  <WalkthroughStep
+                    step="start_learning"
+                    title="Practice Time"
+                    description="When you're ready, click 'Start Learning' to begin practicing this counter with interactive exercises."
                   >
-                    {learningLoading ? "Starting..." : "Start Learning"}
-                  </Button>
+                    <Button
+                      className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase relative"
+                      variant="default"
+                      type="button"
+                      disabled={learningLoading}
+                      onClick={handleStartLearning}
+                    >
+                      {learningLoading ? "Starting..." : "Start Learning"}
+                    </Button>
+                  </WalkthroughStep>
 
                   <Button
                     className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase"

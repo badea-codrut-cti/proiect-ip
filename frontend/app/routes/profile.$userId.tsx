@@ -21,6 +21,7 @@ import { profileClient } from "~/utils/profileClient";
 import { mapRealProfileToUi, computeLevelFromXp } from "~/utils/profileHelpers";
 import { apiFetch } from "~/utils/api";
 import type { UiProfile } from "~/types/profile";
+import { useWalkthrough } from "~/context/WalkthroughContext";
 
 import avatarImg from "~/assets/avatars/user-default.png";
 import badgeFirstSteps from "~/assets/badges/first-steps.png";
@@ -50,6 +51,7 @@ export default function UserProfile() {
   const params = useParams();
   const navigate = useNavigate();
   const { user: authUser, logout, loading: authLoading } = useAuth();
+  const { currentStep, complete } = useWalkthrough();
   const userId = params.userId;
 
   const [uiProfile, setUiProfile] = useState<UiProfile | null>(null);
@@ -79,7 +81,11 @@ export default function UserProfile() {
         setError(err instanceof Error ? err.message : "Failed to load profile");
         setLoading(false);
       });
-  }, [userId]);
+
+    if (currentStep !== "completed" && currentStep !== "none" && isOwnProfile) {
+      complete();
+    }
+  }, [userId, isOwnProfile, currentStep, complete]);
 
   const handleLogout = async () => {
     await logout();
@@ -207,11 +213,10 @@ export default function UserProfile() {
                           {notifications.map((notification) => (
                             <div
                               key={notification.id}
-                              className={`p-3 text-sm ${
-                                !notification.is_read
+                              className={`p-3 text-sm ${!notification.is_read
                                   ? 'bg-blue-50 dark:bg-slate-800'
                                   : 'bg-white dark:bg-slate-900'
-                              }`}
+                                }`}
                             >
                               <div className="font-medium text-slate-900 dark:text-slate-100">
                                 {notification.message}

@@ -3,6 +3,8 @@ import { Input } from "~/components/ui/input";
 import { Link, useNavigate } from "react-router";
 import * as wanakana from "wanakana";
 import { apiFetch } from "~/utils/api";
+import { WalkthroughStep } from "~/components/WalkthroughStep";
+import { useWalkthrough } from "~/context/WalkthroughContext";
 
 type ExerciseData = {
   review_id: string;
@@ -34,6 +36,7 @@ export default function ReviewExercise() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState<{ xp: number; correct: boolean } | null>(null);
+  const { currentStep, nextStep } = useWalkthrough();
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -96,6 +99,10 @@ export default function ReviewExercise() {
       setAnswer("");
       if (inputRef.current) {
         inputRef.current.value = "";
+      }
+
+      if (currentStep === "answer_exercise") {
+        nextStep();
       }
 
       setTimeout(() => {
@@ -198,25 +205,31 @@ export default function ReviewExercise() {
               </div>
             </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSubmit();
-              }}
-              className="max-w-xs mx-auto space-y-4"
+            <WalkthroughStep
+              step="answer_exercise"
+              title="Your First Exercise"
+              description="Type the Japanese reading for the number in Romaji (e.g., 'ippon'). It will automatically convert to Hiragana."
             >
-              <Input
-                autoFocus
-                placeholder="Type in Romaji (e.g. 'sanbon')..."
-                value={answer}
-                onChange={(e) => setAnswer(wanakana.toKana(e.target.value, { IMEMode: true }))}
-                className="text-center text-xl h-12 text-slate-900 bg-white border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700"
-                disabled={!!message}
-              />
-              <div className="text-[0.65rem] uppercase tracking-wider text-slate-400 font-semibold">
-                Press Enter to submit
-              </div>
-            </form>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSubmit();
+                }}
+                className="max-w-xs mx-auto space-y-4"
+              >
+                <Input
+                  autoFocus
+                  placeholder="Type in Romaji (e.g. 'sanbon')..."
+                  value={answer}
+                  onChange={(e) => setAnswer(wanakana.toKana(e.target.value, { IMEMode: true }))}
+                  className="text-center text-xl h-12 text-slate-900 bg-white border-slate-200 dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700"
+                  disabled={!!message}
+                />
+                <div className="text-[0.65rem] uppercase tracking-wider text-slate-400 font-semibold">
+                  Press Enter to submit
+                </div>
+              </form>
+            </WalkthroughStep>
 
             {message && (
               <div className={`mt-6 text-sm font-bold ${stats?.correct ? 'text-emerald-600' : 'text-rose-600'}`}>
