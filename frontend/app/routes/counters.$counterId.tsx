@@ -379,7 +379,7 @@ export default function CounterDetailPage() {
                     There are no approved example exercises for this counter yet.
                   </p>
                 )}
-              </CardHeader>
+              </section>
               <CardContent className="space-y-3">
                 <Button
                   className="w-full justify-center rounded-full text-xs font-semibold tracking-[0.18em] uppercase"
@@ -419,7 +419,7 @@ export default function CounterDetailPage() {
                     </CardContent>
                   </Card>
                 ))}
-              </section>
+              </CardContent>
             </div>
 
             <aside className="w-full space-y-4 lg:w-80">
