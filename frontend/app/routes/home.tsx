@@ -35,9 +35,7 @@ export default function Home() {
               NIHONGO COUNT
             </h1>
           </WalkthroughStep>
-          <p className="mt-3 text-[0.7rem] uppercase tracking-[0.28em] text-slate-400 dark:text-slate-500">
-            In progress
-          </p>
+          
 
           {!isAuthenticated && !loading && (
             <Button
